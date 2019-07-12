@@ -10,13 +10,38 @@ function loadJSON(callback) {
     xobj.send(null);
 }
 
-var segments;
+var allSegments;
 
 var myCallback = function(json) {
-    segments = json;
+    allSegments = json;
+
+    /*
+        e.g.:
+        {
+            1234567: [
+                { segment 1 .... },
+                { segment 2 .... },
+                { segment 3 .... }
+            ]
+        }
+    */
+    binsDaily = _.groupBy(allSegments, function(s) {
+        // Zero out the time data, just compare by the date information
+        return new Date(s.time).setHours(0, 0, 0, 0);
+    })
+    function avgWalkingSpeed(segments) {
+        sum = segments.reduce(function(acc, segment) { return acc + segment.avgSpeed; }, 0);
+        return sum / segments.length;
+    }
+
+    for (var day in binsDaily) {
+        binsDaily[day] = avgWalkingSpeed(binsDaily[day]);
+    }
+    console.log(binsDaily);
 }
 
 loadJSON(myCallback);
+
 
 var trace1 = {
     x: [1, 2, 3, 4],
@@ -24,12 +49,6 @@ var trace1 = {
     type: 'scatter'
 };
 
-var trace2 = {
-    x: [1, 2, 3, 4],
-    y: [16, 5, 11, 9],
-    type: 'scatter'
-};
-
-var data = [trace1, trace2];
+var data = [trace1];
 
 Plotly.newPlot('trend', data);

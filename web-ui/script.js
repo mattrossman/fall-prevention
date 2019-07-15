@@ -43,36 +43,25 @@ var myCallback = function(json) {
 
     //create 1D arrays for each property to later be used as y values
     const propertyCols = {
-        avgSpeedCol: Object.values(dailyAverages).map(entry => entry.avgSpeed),
-        strideLengthCol: Object.values(dailyAverages).map(entry => entry.strideLength),
-        supportTimeCol: Object.values(dailyAverages).map(entry => entry.supportTime),
-        strideLengthCOVCol: Object.values(dailyAverages).map(entry => entry.strideLengthCOV),
-        stepWidthCOVCol: Object.values(dailyAverages).map(entry => entry.stepWidthCOV),
-        stepLengthVarCol: Object.values(dailyAverages).map(entry => entry.stepLengthVar)
+        avgSpeed: Object.values(dailyAverages).map(entry => entry.avgSpeed),
+        strideLength: Object.values(dailyAverages).map(entry => entry.strideLength),
+        supportTime: Object.values(dailyAverages).map(entry => entry.supportTime),
+        strideLengthCOV: Object.values(dailyAverages).map(entry => entry.strideLengthCOV),
+        stepWidthCOV: Object.values(dailyAverages).map(entry => entry.stepWidthCOV),
+        stepLengthVar: Object.values(dailyAverages).map(entry => entry.stepLengthVar)
     }
 
-    var trace1 = {
-        x: Object.keys(dailyAverages).map(string => new Date(parseInt(string))),
-        y: propertyCols.avgSpeedCol,
-        type: 'scatter'
-    };
-
-    //var intTimes = Object.keys(averages).map(string => new Date(parseInt(string)));
-    var trace2 = {
-        x: [new Date()],
-        y: [10],
-        type: 'scatter'
-    };
-    var data = [trace1];
-    var data2 = [trace2]
-
-    Plotly.newPlot('avgSpeed', data);
-    Plotly.newPlot('strideLength', data);
-    Plotly.newPlot('supportTime', data);
-    Plotly.newPlot('strideLengthCOV', data);
-    Plotly.newPlot('stepWidthCOV', data);
-    Plotly.newPlot('stepLengthVar', data);
-    // Plotly.newPlot('test', data2);
+    properties.forEach(function(property) {
+        var trace = {
+            x: Object.keys(dailyAverages).map(string => new Date(parseInt(string))),
+            y: propertyCols[property],
+            type: 'scatter'
+        };
+        const div = document.createElement("div");
+        div.id = property + 'Plot';
+        document.getElementById('plot-container').appendChild(div);
+        Plotly.newPlot(property + 'Plot', [trace]);
+    });
 }
 
 loadJSON(myCallback);

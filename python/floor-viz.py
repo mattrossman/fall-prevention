@@ -64,6 +64,7 @@ class Board:
     def __init__(self, df_floor, board_id):
         self.df_floor = df_floor
         self.df = df_floor[df_floor['board_id'] == board_id].drop(columns=['board_id'])
+        self.df = self.df - self.df.iloc[0:10].min()
         self.id = board_id
         self.x_offset = floor_board_map.index(board_id) * board_w
         self.points = None
@@ -74,12 +75,12 @@ class Board:
 
     def init_plot(self):
         # The order is important! you must complete each x sequence (row) before incrementing y
-        coordinates = list((x, y) for y in range(board_h) for x in range(board_w))
+        coordinates = ((x, y) for y in range(board_h) for x in range(board_w))
         xs, ys = zip(*coordinates)
         xs = np.array(xs) + self.x_offset
         rough_max = self.df_floor.iloc[:, 1:].quantile(0.95).quantile(0.95)
         vals = self.get_mapped_entry_array(0).flatten()
-        self.points = plt.scatter(xs, ys[::-1], c=vals, cmap='Greys', vmin=5, vmax=rough_max)
+        self.points = plt.scatter(xs, ys[::-1], c=vals, cmap='Greys', vmin=0, vmax=rough_max)
         plt.text(self.x_offset, 5, f'Panel {self.id}', color='red')
 
     def update_plot(self, frame):

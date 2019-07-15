@@ -10,8 +10,6 @@ function loadJSON(callback) {
     xobj.send(null);
 }
 
-var allSegments;
-
 var myCallback = function(json) {
     allSegments = json;
 
@@ -25,7 +23,7 @@ var myCallback = function(json) {
             ]
         }
     */
-    binsDaily = _.groupBy(allSegments, function(s) {
+    const binsDaily = _.groupBy(allSegments, function(s) {
         // Zero out the time data, just compare by the date information
         return new Date(s.time).setHours(0, 0, 0, 0);
     })
@@ -33,13 +31,13 @@ var myCallback = function(json) {
         sum = segments.reduce(function(acc, segment) { return acc + segment[param]; }, 0);
         return sum / segments.length;
     }
-    var averages = {}
-    properties = ['avgSpeed', 'strideLength', 'supportTime', 'strideLengthCOV', 'stepWidthCOV', 'stepLengthVar']
-    for (var day in binsDaily) {
-        averages[day] = {}
-        for (var property in properties) {
-            averages[day][property] = propertyAverage(binsDaily[day], property);
-        }
+    const averages = {};
+    const properties = ['avgSpeed', 'strideLength', 'supportTime', 'strideLengthCOV', 'stepWidthCOV', 'stepLengthVar'];
+    for (let day in binsDaily) {
+        averages[day] = {};
+        properties.forEach(function(property) {
+            averages[day][property] = propertyAverage(binsDaily[day], property)
+        });
     }   
     console.log(averages);
 }

@@ -31,25 +31,38 @@ var myCallback = function(json) {
         sum = segments.reduce(function(acc, segment) { return acc + segment[param]; }, 0);
         return sum / segments.length;
     }
-    const averages = {};
+    dailyAverages = {};
     const properties = ['avgSpeed', 'strideLength', 'supportTime', 'strideLengthCOV', 'stepWidthCOV', 'stepLengthVar'];
     for (let day in binsDaily) {
-        averages[day] = {};
+        dailyAverages[day] = {};
         properties.forEach(function(property) {
-            averages[day][property] = propertyAverage(binsDaily[day], property)
+            dailyAverages[day][property] = propertyAverage(binsDaily[day], property)
         });
-    }   
-    console.log(averages);
+    }
+    console.log(dailyAverages);
+
+    //create 1D arrays for each property to later be used as y values
+    const propertyCols = {
+        avgSpeedCol: Object.values(dailyAverages).map(entry => entry.avgSpeed),
+        strideLengthCol: Object.values(dailyAverages).map(entry => entry.strideLength),
+        supportTimeCol: Object.values(dailyAverages).map(entry => entry.supportTime),
+        strideLengthCOVCol: Object.values(dailyAverages).map(entry => entry.strideLengthCOV),
+        stepWidthCOVCol: Object.values(dailyAverages).map(entry => entry.stepWidthCOV),
+        stepLengthVarCol: Object.values(dailyAverages).map(entry => entry.stepLengthVar)
+    }
+
+    var trace1 = {
+        x: Object.keys(dailyAverages),
+        y: propertyCols.avgSpeedCol,
+        type: 'scatter'
+    };
+    var data = [trace1];
+
+    Plotly.newPlot('trend', data);
 }
 
 loadJSON(myCallback);
 
-var trace1 = {
-    x: [1, 2, 3, 4],
-    y: [10, 15, 13, 17],
-    type: 'scatter'
-};
 
-var data = [trace1];
 
-Plotly.newPlot('trend', data);
+

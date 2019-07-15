@@ -29,19 +29,22 @@ var myCallback = function(json) {
         // Zero out the time data, just compare by the date information
         return new Date(s.time).setHours(0, 0, 0, 0);
     })
-    function avgWalkingSpeed(segments) {
-        sum = segments.reduce(function(acc, segment) { return acc + segment.avgSpeed; }, 0);
+    function propertyAverage(segments, param) {
+        sum = segments.reduce(function(acc, segment) { return acc + segment[param]; }, 0);
         return sum / segments.length;
     }
-
+    var averages = {}
+    properties = ['avgSpeed', 'strideLength', 'supportTime', 'strideLengthCOV', 'stepWidthCOV', 'stepLengthVar']
     for (var day in binsDaily) {
-        binsDaily[day] = avgWalkingSpeed(binsDaily[day]);
-    }
-    console.log(binsDaily);
+        averages[day] = {}
+        for (var property in properties) {
+            averages[day][property] = propertyAverage(binsDaily[day], property);
+        }
+    }   
+    console.log(averages);
 }
 
 loadJSON(myCallback);
-
 
 var trace1 = {
     x: [1, 2, 3, 4],

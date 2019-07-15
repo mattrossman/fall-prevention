@@ -62,6 +62,14 @@ var myCallback = function(json) {
         document.getElementById('plot-container').appendChild(div);
         Plotly.newPlot(property + 'Plot', [trace]);
     });
+
+    /*function togglePlot2() {
+        $('#avgSpeedPlot').toggle();
+        $('#avgSpeedButton').text("Hide");
+    }
+    */
+
+
 }
 
 loadJSON(myCallback);

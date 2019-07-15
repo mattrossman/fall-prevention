@@ -52,13 +52,27 @@ var myCallback = function(json) {
     }
 
     var trace1 = {
-        x: Object.keys(dailyAverages),
+        x: Object.keys(dailyAverages).map(string => new Date(parseInt(string))),
         y: propertyCols.avgSpeedCol,
         type: 'scatter'
     };
-    var data = [trace1];
 
-    Plotly.newPlot('trend', data);
+    //var intTimes = Object.keys(averages).map(string => new Date(parseInt(string)));
+    var trace2 = {
+        x: [new Date()],
+        y: [10],
+        type: 'scatter'
+    };
+    var data = [trace1];
+    var data2 = [trace2]
+
+    Plotly.newPlot('avgSpeed', data);
+    Plotly.newPlot('strideLength', data);
+    Plotly.newPlot('supportTime', data);
+    Plotly.newPlot('strideLengthCOV', data);
+    Plotly.newPlot('stepWidthCOV', data);
+    Plotly.newPlot('stepLengthVar', data);
+    // Plotly.newPlot('test', data2);
 }
 
 loadJSON(myCallback);

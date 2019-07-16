@@ -55,7 +55,6 @@ var myCallback = function(json) {
         var trace = {
             x: Object.keys(dailyAverages).map(string => new Date(parseInt(string))),
             y: propertyCols[property],
-            name: property + " Plot",
             type: 'scatter'
         };
         var layout = {

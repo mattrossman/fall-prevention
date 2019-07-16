@@ -55,25 +55,31 @@ var myCallback = function(json) {
         var trace = {
             x: Object.keys(dailyAverages).map(string => new Date(parseInt(string))),
             y: propertyCols[property],
+            name: property + " Plot",
             type: 'scatter'
+        };
+        var layout = {
+            title: {
+              text: property + " Plot",
+              font: {
+                family: 'Courier New, monospace',
+                size: 16
+              },
+              xref: 'paper',
+              x: 0.05,
+            },
         };
         const div = document.createElement("div");
         div.id = property + 'Plot';
         document.getElementById('plot-container').appendChild(div);
-        Plotly.newPlot(property + 'Plot', [trace]);
+        Plotly.newPlot(property + 'Plot', [trace], layout);
     });
-
-    /*function togglePlot2() {
-        $('#avgSpeedPlot').toggle();
-        $('#avgSpeedButton').text("Hide");
-    }
-    */
-
-
 }
 
 loadJSON(myCallback);
 
-
-
-
+const el = document.querySelector('.checkbox-switch');
+const mySwitch = new Switch(el, {
+    checked: true,
+    onChange: function(){ $('#avgSpeedPlot').toggle() }
+});

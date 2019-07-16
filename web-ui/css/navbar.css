@@ -57,8 +57,9 @@ body {
 }
 
 #sidebar .nav a{
+  line-height: 50px;
   background: none;
-  border-bottom: 1px solid #455A64;
+  display: inline;
   color: #CFD8DC;
   font-size: 14px;
   padding: 16px 24px;
@@ -71,4 +72,8 @@ body {
 
 #sidebar .nav a i{
   margin-right: 16px;
+}
+
+#sidebar .nav li {
+  border-bottom: 1px solid #455A64;
 }

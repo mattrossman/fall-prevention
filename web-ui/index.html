@@ -11,8 +11,10 @@
         <!-- Stuff for sidebar -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/material-design-iconic-font/2.2.0/css/material-design-iconic-font.min.css">
         <link rel="stylesheet" href="css/navbar.css">
+        <link rel="stylesheet" href="css/switch.css">
 
         <title>Hello, world!</title>
+
     </head>
     <body>
         <div id="viewport">
@@ -27,7 +29,7 @@
                         <a href="#">
                             <i class="zmdi zmdi-view-dashboard"></i> Dashboard
                         </a>
-                        <button onclick="$('#avgSpeedPlot').toggle();" id="avgSpeedButton">Show</button>
+                        <input type="checkbox" id="firstSwitch" class="checkbox-switch">
                     </li>
                 </ul>
             </div>
@@ -62,6 +64,7 @@
         <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
         <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
         <script src='https://cdn.jsdelivr.net/lodash/4.17.2/lodash.min.js'></script>
+        <script src="js/switch.js"></script>
         <script src="script.js"></script>
     </body>
 </html>

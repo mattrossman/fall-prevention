@@ -56,12 +56,12 @@ body {
   color: #fff;
 }
 
-#sidebar .nav a{
+#sidebar .nav {
   line-height: 50px;
   background: none;
   display: inline;
   color: #CFD8DC;
-  font-size: 14px;
+  font-size: 18px;
   padding: 16px 24px;
 }
 

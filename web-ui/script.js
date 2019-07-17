@@ -12,6 +12,17 @@ function loadJSON(callback) {
 
 var myCallback = function(json) {
     allSegments = json;
+ 
+    const properties = ['avgSpeed', 'strideLength', 'supportTime', 'strideLengthCOV', 'stepWidthCOV', 'stepLengthVar'];
+    propertyInfo = {
+        avgSpeed : ['Average Speed', '(cm/s)'],
+        strideLength : ['Stride Length', '(cm)'],
+        supportTime : ['Support Time', '(s)'],
+        strideLengthCOV : ['Stride Length Variance', '(%)'],
+        stepWidthCOV : ['Step Width Variance', '(%)'],
+        stepLengthVar : ['Step Length Variance', '(cm)'] 
+    }
+    
 
     /*
         e.g.:
@@ -32,7 +43,7 @@ var myCallback = function(json) {
         return sum / segments.length;
     }
     dailyAverages = {};
-    const properties = ['avgSpeed', 'strideLength', 'supportTime', 'strideLengthCOV', 'stepWidthCOV', 'stepLengthVar'];
+
     for (let day in binsDaily) {
         dailyAverages[day] = {};
         properties.forEach(function(property) {
@@ -58,42 +69,12 @@ var myCallback = function(json) {
             mode: 'markers+lines',
             type: 'scatter',
             marker: {size: 12}
-        };
-        let plotTitle = '';
-        let plotUnits = '';
-        switch(property) {
-            case 'avgSpeed':
-                plotTitle = 'Average Speed';
-                plotUnits = '(cm/s)';
-                break;
-            case 'strideLength':
-                plotTitle = 'Stride Length';
-                plotUnits = '(cm)';
-                break;
-            case 'supportTime':
-                plotTitle = 'Support Time';
-                plotUnits = '(s)';
-                break;
-            case 'strideLengthCOV':
-                plotTitle = 'Stide Length Variance';
-                plotUnits = '(%)';
-                break;
-            case 'stepWidthCOV':
-                plotTitle = 'Step Width Variance';
-                plotUnits = '(%)';
-                break;
-            case 'stepLengthVar':
-                plotTitle = 'Step Length Variance';
-                plotUnits = '(cm)';
-                break;
-            default:
-                //error
-        }
+        }; 
         var layout = {
             title: {
-              text: plotTitle,
+              text: propertyInfo[property][0],
               font: {
-                family: 'Arial, monospace', //gross
+                family: 'Arial, monospace', 
                 size: 24
               },
               xref: 'paper',
@@ -101,7 +82,7 @@ var myCallback = function(json) {
             },
             yaxis: {
                 title: {
-                  text: plotTitle + '  ' + plotUnits,
+                  text: propertyInfo[property][0] + ' ' + propertyInfo[property][1],
                   font: {
                     family: 'Arial, monospace',
                     size: 14,
@@ -113,7 +94,18 @@ var myCallback = function(json) {
         const div = document.createElement("div");
         div.id = property + 'Plot';
         document.getElementById('plot-container').appendChild(div);
+
+        /*sidebar*/
+        const li = document.createElement("li");
+        li.id = propertyInfo[property][0];
+        li.innerHTML = propertyInfo[property][0] + "     ";
+        const input = document.createElement("input");
+        input.type = "checkbox"; input.id = property + 'Switch'; input.class = "checkbox-switch";
+        document.getElementById('toggle-container').appendChild(li);
+        document.getElementById(li.id).appendChild(input);
+        
         Plotly.newPlot(property + 'Plot', [trace], layout);
+        
     });
 }
 

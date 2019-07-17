@@ -58,24 +58,31 @@ var myCallback = function(json) {
             type: 'scatter'
         };
         let plotTitle = '';
+        let plotUnits = '';
         switch(property) {
             case 'avgSpeed':
                 plotTitle = 'Average Speed';
+                plotUnits = '(cm/s)';
                 break;
             case 'strideLength':
                 plotTitle = 'Stride Length';
+                plotUnits = '(cm)';
                 break;
             case 'supportTime':
                 plotTitle = 'Support Time';
+                plotUnits = '(s)';
                 break;
             case 'strideLengthCOV':
                 plotTitle = 'Stide Length Variance';
+                plotUnits = '(%)';
                 break;
             case 'stepWidthCOV':
                 plotTitle = 'Step Width Variance';
+                plotUnits = '(%)';
                 break;
             case 'stepLengthVar':
                 plotTitle = 'Step Length Variance';
+                plotUnits = '(cm)';
                 break;
             default:
                 //error
@@ -89,8 +96,17 @@ var myCallback = function(json) {
               },
               xref: 'paper',
               x: 0.00,
-              y: -0.30,
             },
+            yaxis: {
+                title: {
+                  text: plotTitle + '  ' + plotUnits,
+                  font: {
+                    family: 'Arial, monospace',
+                    size: 14,
+                    color: '#7f7f7f'
+                  }
+                }
+              }
         };
         const div = document.createElement("div");
         div.id = property + 'Plot';

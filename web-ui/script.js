@@ -51,12 +51,25 @@ var myCallback = function(json) {
         stepLengthVar: Object.values(dailyAverages).map(entry => entry.stepLengthVar)
     }
 
-    properties.forEach(function(property) {
-        var trace = {
+    const domainSize = 1 / properties.length;
+    const subplotHeight = 300;
+
+    const traces = [];
+    const layout = {
+        shapes: [],
+        height: subplotHeight * properties.length,
+        xaxis: {
+            side: 'top'
+        }
+    };
+    properties.forEach(function(property, i) {
+        const axisSuffix = (i === 0 ? '' : i + 1);
+        const trace = {
             x: Object.keys(dailyAverages).map(string => new Date(parseInt(string))),
             y: propertyCols[property],
             mode: 'markers+lines',
             type: 'scatter',
+            yaxis: 'y' + axisSuffix,
             marker: {size: 12}
         };
         let plotTitle = '';
@@ -89,32 +102,29 @@ var myCallback = function(json) {
             default:
                 //error
         }
-        var layout = {
+        const yTop = 1 - i * domainSize;
+        const yBottom = 1 - (i + 1) * domainSize;
+        const yaxisLayout = {
+            domain: [yBottom, yTop],
             title: {
-              text: plotTitle,
-              font: {
-                family: 'Arial, monospace', //gross
-                size: 24
-              },
-              xref: 'paper',
-              x: 0.00,
-            },
-            yaxis: {
-                title: {
-                  text: plotTitle + '  ' + plotUnits,
-                  font: {
-                    family: 'Arial, monospace',
-                    size: 14,
-                    color: '#7f7f7f'
-                  }
-                }
-              }
+                text: plotTitle + ' ' + plotUnits
+            }
         };
-        const div = document.createElement("div");
-        div.id = property + 'Plot';
-        document.getElementById('plot-container').appendChild(div);
-        Plotly.newPlot(property + 'Plot', [trace], layout);
+        layout['yaxis' + axisSuffix] = yaxisLayout;
+        // Black line at the bottom of each subplot
+        const divider = {
+            type: 'line',
+            xref: 'paper',
+            yref: 'paper',
+            x0: 0,
+            x1: 1,
+            y0: yBottom,
+            y1: yBottom
+        };
+        layout.shapes.push(divider);
+        traces.push(trace);
     });
+    Plotly.newPlot('plot', traces, layout);
 }
 
 loadJSON(myCallback);

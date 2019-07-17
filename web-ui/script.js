@@ -57,15 +57,39 @@ var myCallback = function(json) {
             y: propertyCols[property],
             type: 'scatter'
         };
+        let plotTitle = '';
+        switch(property) {
+            case 'avgSpeed':
+                plotTitle = 'Average Speed';
+                break;
+            case 'strideLength':
+                plotTitle = 'Stride Length';
+                break;
+            case 'supportTime':
+                plotTitle = 'Support Time';
+                break;
+            case 'strideLengthCOV':
+                plotTitle = 'Stide Length Variance';
+                break;
+            case 'stepWidthCOV':
+                plotTitle = 'Step Width Variance';
+                break;
+            case 'stepLengthVar':
+                plotTitle = 'Step Length Variance';
+                break;
+            default:
+                //error
+        }
         var layout = {
             title: {
-              text: property + " Plot",
+              text: plotTitle,
               font: {
-                family: 'Courier New, monospace',
-                size: 16
+                family: 'Arial, monospace', //gross
+                size: 24
               },
               xref: 'paper',
-              x: 0.05,
+              x: 0.00,
+              y: -0.30,
             },
         };
         const div = document.createElement("div");

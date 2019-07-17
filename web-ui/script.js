@@ -114,6 +114,28 @@ var myCallback = function(json) {
         div.id = property + 'Plot';
         document.getElementById('plot-container').appendChild(div);
         Plotly.newPlot(property + 'Plot', [trace], layout);
+        div.on('plotly_relayout', function(eventdata){
+            if ('xaxis.range[0]' in eventdata && 'xaxis.range[1]' in eventdata) {
+                console.log('X-axis was changed');
+                const xMin = eventdata['xaxis.range[0]'];
+                const xMax = eventdata['xaxis.range[1]'];
+                $('.js-plotly-plot').each(function() {
+                    // `this` refers to the DOM element for this iteration, i.e. a plot div
+                    Plotly.relayout(this, {'xaxis.range': [xMin, xMax]});
+                });
+            }
+            /*
+            Monitoring changes to xaxis.autorange and calling relayout accordingly will result
+            in an infinite loop, so the plotly_doubleclick event is used instead below.
+            */
+        });
+        div.on('plotly_doubleclick', function() {
+            console.log('X-axis was reset');
+            $('.js-plotly-plot').each(function() {
+                // `this` refers to the DOM element for this iteration, i.e. a plot div
+                Plotly.relayout(this, {"xaxis.autorange": true});
+            })
+        });
     });
 }
 

@@ -53,11 +53,14 @@ var myCallback = function(json) {
 
     const domainSize = 1 / properties.length;
     const subplotHeight = 300;
-    
+
     const traces = [];
     const layout = {
         shapes: [],
-        height: subplotHeight * properties.length
+        height: subplotHeight * properties.length,
+        xaxis: {
+            side: 'top'
+        }
     };
     properties.forEach(function(property, i) {
         const axisSuffix = (i === 0 ? '' : i + 1);

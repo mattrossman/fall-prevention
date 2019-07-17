@@ -59,7 +59,7 @@ var myCallback = function(json) {
         shapes: [],
         height: subplotHeight * properties.length,
         xaxis: {
-            side: 'top'
+            side: 'top',
         }
     };
     properties.forEach(function(property, i) {
@@ -134,3 +134,35 @@ const mySwitch = new Switch(el, {
     checked: true,
     onChange: function(){ $('#avgSpeedPlot').toggle() }
 });
+
+var trace1 = {
+    x: [0, 1, 2],
+    y: [10, 11, 12],
+    domain: { row: 0 },
+    type: 'scatter'
+};
+
+var trace2 = {
+    x: [2, 3, 4],
+    y: [100, 110, 120],
+    domain: { row: 1 },
+    yaxis: 'y2',
+    type: 'scatter'
+};
+
+var trace3 = {
+    x: [3, 4, 5],
+    y: [1000, 1100, 1200],
+    domain: { row: 2 },
+    yaxis: 'y3',
+    type: 'scatter'
+};
+
+var data = [trace1, trace2, trace3];
+
+var layout = {
+    grid: {rows: 3, columns: 1, pattern: 'coupled'},
+    legend: { traceorder: 'reversed' },
+};
+
+Plotly.newPlot('test-plot', data, layout);

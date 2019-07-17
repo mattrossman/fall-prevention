@@ -62,13 +62,27 @@ var myCallback = function(json) {
         stepLengthVar: Object.values(dailyAverages).map(entry => entry.stepLengthVar)
     }
 
-    properties.forEach(function(property) {
-        var trace = {
+    const domainSize = 1 / properties.length;
+    const subplotHeight = 300;
+
+    const traces = [];
+    const layout = {
+        shapes: [],
+        height: subplotHeight * properties.length,
+        xaxis: {
+            side: 'top'
+        }
+    };
+    properties.forEach(function(property, i) {
+        const axisSuffix = (i === 0 ? '' : i + 1);
+        const trace = {
             x: Object.keys(dailyAverages).map(string => new Date(parseInt(string))),
             y: propertyCols[property],
             mode: 'markers+lines',
             type: 'scatter',
+            yaxis: 'y' + axisSuffix,
             marker: {size: 12}
+<<<<<<< HEAD
         }; 
         var layout = {
             title: {
@@ -106,7 +120,62 @@ var myCallback = function(json) {
         
         Plotly.newPlot(property + 'Plot', [trace], layout);
         
+=======
+        };
+        let plotTitle = '';
+        let plotUnits = '';
+        switch(property) {
+            case 'avgSpeed':
+                plotTitle = 'Average Speed';
+                plotUnits = '(cm/s)';
+                break;
+            case 'strideLength':
+                plotTitle = 'Stride Length';
+                plotUnits = '(cm)';
+                break;
+            case 'supportTime':
+                plotTitle = 'Support Time';
+                plotUnits = '(s)';
+                break;
+            case 'strideLengthCOV':
+                plotTitle = 'Stide Length Variance';
+                plotUnits = '(%)';
+                break;
+            case 'stepWidthCOV':
+                plotTitle = 'Step Width Variance';
+                plotUnits = '(%)';
+                break;
+            case 'stepLengthVar':
+                plotTitle = 'Step Length Variance';
+                plotUnits = '(cm)';
+                break;
+            default:
+                //error
+        }
+        const yTop = 1 - i * domainSize;
+        const yBottom = 1 - (i + 1) * domainSize;
+        const yaxisLayout = {
+            domain: [yBottom, yTop],
+            title: {
+                text: plotTitle + ' ' + plotUnits
+            }
+        };
+        layout['yaxis' + axisSuffix] = yaxisLayout;
+        // Black line at the bottom of each subplot
+        const divider = {
+            type: 'line',
+            xref: 'paper',
+            yref: 'paper',
+            x0: 0,
+            x1: 1,
+            y0: yBottom,
+            y1: yBottom
+        };
+        layout.shapes.push(divider);
+        traces.push(trace);
+>>>>>>> web-ui
     });
+    Plotly.newPlot('plot', traces, layout);
 }
 
 loadJSON(myCallback);

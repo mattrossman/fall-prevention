@@ -51,12 +51,22 @@ var myCallback = function(json) {
         stepLengthVar: Object.values(dailyAverages).map(entry => entry.stepLengthVar)
     }
 
-    properties.forEach(function(property) {
-        var trace = {
+    const domainSize = 1 / properties.length;
+    const subplotHeight = 300;
+    
+    const traces = [];
+    const layout = {
+        shapes: [],
+        height: subplotHeight * properties.length
+    };
+    properties.forEach(function(property, i) {
+        const axisSuffix = (i === 0 ? '' : i + 1);
+        const trace = {
             x: Object.keys(dailyAverages).map(string => new Date(parseInt(string))),
             y: propertyCols[property],
             mode: 'markers+lines',
             type: 'scatter',
+            yaxis: 'y' + axisSuffix,
             marker: {size: 12}
         };
         let plotTitle = '';
@@ -89,54 +99,29 @@ var myCallback = function(json) {
             default:
                 //error
         }
-        var layout = {
+        const yTop = 1 - i * domainSize;
+        const yBottom = 1 - (i + 1) * domainSize;
+        const yaxisLayout = {
+            domain: [yBottom, yTop],
             title: {
-              text: plotTitle,
-              font: {
-                family: 'Arial, monospace', //gross
-                size: 24
-              },
-              xref: 'paper',
-              x: 0.00,
-            },
-            yaxis: {
-                title: {
-                  text: plotTitle + '  ' + plotUnits,
-                  font: {
-                    family: 'Arial, monospace',
-                    size: 14,
-                    color: '#7f7f7f'
-                  }
-                }
-              }
-        };
-        const div = document.createElement("div");
-        div.id = property + 'Plot';
-        document.getElementById('plot-container').appendChild(div);
-        Plotly.newPlot(property + 'Plot', [trace], layout);
-        div.on('plotly_relayout', function(eventdata){
-            if ('xaxis.range[0]' in eventdata && 'xaxis.range[1]' in eventdata) {
-                console.log('X-axis was changed');
-                const xMin = eventdata['xaxis.range[0]'];
-                const xMax = eventdata['xaxis.range[1]'];
-                $('.js-plotly-plot').each(function() {
-                    // `this` refers to the DOM element for this iteration, i.e. a plot div
-                    Plotly.relayout(this, {'xaxis.range': [xMin, xMax]});
-                });
+                text: plotTitle + ' ' + plotUnits
             }
-            /*
-            Monitoring changes to xaxis.autorange and calling relayout accordingly will result
-            in an infinite loop, so the plotly_doubleclick event is used instead below.
-            */
-        });
-        div.on('plotly_doubleclick', function() {
-            console.log('X-axis was reset');
-            $('.js-plotly-plot').each(function() {
-                // `this` refers to the DOM element for this iteration, i.e. a plot div
-                Plotly.relayout(this, {"xaxis.autorange": true});
-            })
-        });
+        };
+        layout['yaxis' + axisSuffix] = yaxisLayout;
+        // Black line at the bottom of each subplot
+        const divider = {
+            type: 'line',
+            xref: 'paper',
+            yref: 'paper',
+            x0: 0,
+            x1: 1,
+            y0: yBottom,
+            y1: yBottom
+        };
+        layout.shapes.push(divider);
+        traces.push(trace);
     });
+    Plotly.newPlot('plot', traces, layout);
 }
 
 loadJSON(myCallback);

@@ -74,41 +74,6 @@ var myCallback = function(json) {
         }
     };
     properties.forEach(function(property, i) {
-        const axisSuffix = (i === 0 ? '' : i + 1);
-        const trace = {
-            x: Object.keys(dailyAverages).map(string => new Date(parseInt(string))),
-            y: propertyCols[property],
-            mode: 'markers+lines',
-            type: 'scatter',
-            yaxis: 'y' + axisSuffix,
-            marker: {size: 12}
-<<<<<<< HEAD
-        }; 
-        var layout = {
-            title: {
-              text: propertyInfo[property][0],
-              font: {
-                family: 'Arial, monospace', 
-                size: 24
-              },
-              xref: 'paper',
-              x: 0.00,
-            },
-            yaxis: {
-                title: {
-                  text: propertyInfo[property][0] + ' ' + propertyInfo[property][1],
-                  font: {
-                    family: 'Arial, monospace',
-                    size: 14,
-                    color: '#7f7f7f'
-                  }
-                }
-              }
-        };
-        const div = document.createElement("div");
-        div.id = property + 'Plot';
-        document.getElementById('plot-container').appendChild(div);
-
         /*sidebar*/
         const li = document.createElement("li");
         li.id = propertyInfo[property][0];
@@ -117,11 +82,18 @@ var myCallback = function(json) {
         input.type = "checkbox"; input.id = property + 'Switch'; input.class = "checkbox-switch";
         document.getElementById('toggle-container').appendChild(li);
         document.getElementById(li.id).appendChild(input);
-        
-        Plotly.newPlot(property + 'Plot', [trace], layout);
-        
-=======
+
+        /* plotting */
+        const axisSuffix = (i === 0 ? '' : i + 1);
+        const trace = {
+            x: Object.keys(dailyAverages).map(string => new Date(parseInt(string))),
+            y: propertyCols[property],
+            mode: 'markers+lines',
+            type: 'scatter',
+            yaxis: 'y' + axisSuffix,
+            marker: {size: 12}
         };
+
         let plotTitle = '';
         let plotUnits = '';
         switch(property) {
@@ -173,7 +145,6 @@ var myCallback = function(json) {
         };
         layout.shapes.push(divider);
         traces.push(trace);
->>>>>>> web-ui
     });
     Plotly.newPlot('plot', traces, layout);
 }

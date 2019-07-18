@@ -1,3 +1,21 @@
+const gaitPlotConfig = {
+    marginTop: 50,
+    subplotHeight: 300
+}
+
+const colorCycle = [
+    '#1f77b4',  // muted blue
+    '#ff7f0e',  // safety orange
+    '#2ca02c',  // cooked asparagus green
+    '#d62728',  // brick red
+    '#9467bd',  // muted purple
+    '#8c564b',  // chestnut brown
+    '#e377c2',  // raspberry yogurt pink
+    '#7f7f7f',  // middle gray
+    '#bcbd22',  // curry yellow-green
+    '#17becf'   // blue-teal
+]
+
 function loadJSON(callback) {
     var xobj = new XMLHttpRequest();
     xobj.overrideMimeType("application/json");
@@ -16,27 +34,39 @@ var myCallback = function(json) {
     const properties = {
         avgSpeed : {
             title: 'Average Speed',
-            units: '(cm/s)'
+            units: '(cm/s)',
+            active: true,
+            trace: {}
         },
         strideLength : {
             title: 'Stride Length',
-            units: '(cm)'
+            units: '(cm)',
+            active: true,
+            trace: {}
         },
         supportTime : {
             title: 'Support Time',
-            units: '(s)'
+            units: '(s)',
+            active: true,
+            trace: {}
         },
         strideLengthCOV : {
             title: 'Stride Length Variance',
-            units: '(%)'
+            units: '(%)',
+            active: true,
+            trace: {}
         },
         stepWidthCOV : {
             title: 'Step Width Variance',
-            units: '(%)'
+            units: '(%)',
+            active: true,
+            trace: {}
         },
         stepLengthVar : {
             title: 'Step Length Variance',
-            units: '(cm)'
+            units: '(cm)',
+            active: true,
+            trace: {}
         } 
     }
     
@@ -75,17 +105,6 @@ var myCallback = function(json) {
         propertyCols[property] = Object.values(dailyAverages).map(entry => entry[property])
     });
 
-    const domainSize = 1 / Object.keys(properties).length;
-    const subplotHeight = 300;
-
-    const traces = [];
-    const layout = {
-        shapes: [],
-        height: subplotHeight * Object.keys(properties).length,
-        xaxis: {
-            side: 'top'
-        }
-    };
     Object.keys(properties).forEach(function(property, i) {
         /*sidebar*/
         const li = document.createElement("li");
@@ -103,40 +122,77 @@ var myCallback = function(json) {
             //onChange: function(){ $('#avgSpeedPlot').toggle() }
         });
 
-        /* plotting */
+        // Create traces for each property
         const axisSuffix = (i === 0 ? '' : i + 1);
-        const trace = {
+        properties[property]['trace'] = {
             x: Object.keys(dailyAverages).map(string => new Date(parseInt(string))),
             y: propertyCols[property],
             mode: 'markers+lines',
             type: 'scatter',
             yaxis: 'y' + axisSuffix,
-            marker: {size: 12}
-        };
-
-        const yTop = 1 - i * domainSize;
-        const yBottom = 1 - (i + 1) * domainSize;
-        const yaxisLayout = {
-            domain: [yBottom, yTop],
-            title: {
-                text: properties[property].title + ' ' + properties[property].units
+            marker: {size: 12},
+            line: {
+                color: colorCycle[i]
             }
-        };
-        layout['yaxis' + axisSuffix] = yaxisLayout;
-        // Black line at the bottom of each subplot
-        const divider = {
-            type: 'line',
-            xref: 'paper',
-            yref: 'paper',
-            x0: 0,
-            x1: 1,
-            y0: yBottom,
-            y1: yBottom
-        };
-        layout.shapes.push(divider);
-        traces.push(trace);
+        }
     });
-    Plotly.newPlot('plot', traces, layout);
+    Plotly.newPlot('plot', plotlyGetInitData(properties), plotlyGetInitLayout(properties), {responsive: true});
+}
+
+function plotlyGetInitLayout(properties) {
+    const numActive = Object.values(properties).filter(p => p.active).length
+    const layout = {
+        height: gaitPlotConfig.marginTop + gaitPlotConfig.subplotHeight * numActive,
+        margin: {
+            b: 0,
+            r: 0,
+            t: gaitPlotConfig.marginTop
+        },
+        showlegend: false,
+        grid: {
+            xaxes: ['x'],
+            ygap: 0,
+            yaxes: Object.values(properties).map(p => p.trace.yaxis),
+            xside: 'top plot'
+        },
+        xaxis: {
+            linecolor: 'black',
+            mirror: 'all',
+        }
+    }
+    Object.values(properties).forEach(function(propertyVal, i) {
+        const axisSuffix = (i === 0 ? '' : i + 1);
+        layout['yaxis' + axisSuffix] = {
+            title: { text: propertyVal.title + ' ' + propertyVal.units }
+        }
+    });
+    return layout;
+}
+
+function plotlyGetInitData(properties) {
+    return Object.values(properties).map(p => p.trace);
+}
+
+function plotlyToggleSubplot(properties, property) {
+    properties[property].active = !properties[property].active;
+    if (properties[property].active) {
+        const newIndex = Object.entries(properties).filter(([k, v]) => v.active).map(([k, v]) => k).indexOf(property)
+        Plotly.addTraces('plot', properties[property].trace, newIndex);
+    }
+    else {
+        const oldIndex = Object.entries(properties).filter(([k, v]) => (v.active || k == property)).map(([k, v]) => k).indexOf(property)
+        Plotly.deleteTraces('plot', oldIndex);
+    }
+    Plotly.relayout('plot', plotlyGetRelayout(properties))
+}
+
+function plotlyGetRelayout(properties) {
+    const numActive = Object.values(properties).filter(p => p.active).length
+    const layout = {
+        'height': gaitPlotConfig.marginTop + gaitPlotConfig.subplotHeight * numActive,
+        'grid.yaxes': Object.values(properties).filter(p => p.active).map(p => p.trace.yaxis)
+    };
+    return layout;
 }
 
 loadJSON(myCallback);

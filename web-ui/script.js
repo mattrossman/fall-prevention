@@ -82,6 +82,13 @@ var myCallback = function(json) {
         input.type = "checkbox"; input.id = property + 'Switch'; input.class = "checkbox-switch";
         document.getElementById('toggle-container').appendChild(li);
         document.getElementById(li.id).appendChild(input);
+        /* switches */
+        const el = document.getElementById(property + 'Switch');
+        const mySwitch = new Switch(el, {
+            checked: true,
+            size: 'small'
+            //onChange: function(){ $('#avgSpeedPlot').toggle() }
+        });
 
         /* plotting */
         const axisSuffix = (i === 0 ? '' : i + 1);
@@ -120,9 +127,3 @@ var myCallback = function(json) {
 }
 
 loadJSON(myCallback);
-
-const el = document.querySelector('.checkbox-switch');
-const mySwitch = new Switch(el, {
-    checked: true,
-    onChange: function(){ $('#avgSpeedPlot').toggle() }
-});

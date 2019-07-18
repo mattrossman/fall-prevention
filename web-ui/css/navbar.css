@@ -56,24 +56,11 @@ body {
   color: #fff;
 }
 
-#sidebar .nav {
-  line-height: 50px;
+#sidebar .nav li{
+  line-height: 35px;
   background: none;
-  display: inline;
   color: #CFD8DC;
   font-size: 18px;
   padding: 16px 24px;
-}
-
-#sidebar .nav a:hover{
-  background: none;
-  color: #ECEFF1;
-}
-
-#sidebar .nav a i{
-  margin-right: 16px;
-}
-
-#sidebar .nav li {
   border-bottom: 1px solid #455A64;
 }

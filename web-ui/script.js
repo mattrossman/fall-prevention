@@ -118,8 +118,8 @@ var myCallback = function(json) {
         const el = document.getElementById(property + 'Switch');
         const mySwitch = new Switch(el, {
             checked: true,
-            size: 'small'
-            //onChange: function(){ $('#avgSpeedPlot').toggle() }
+            size: 'small',
+            onChange: function(){ plotlyToggleSubplot(properties, property) }
         });
 
         // Create traces for each property

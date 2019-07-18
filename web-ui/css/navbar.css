@@ -57,14 +57,19 @@ body {
 }
 
 #sidebar .nav li{
-  line-height: 35px;
   background: none;
   color: #CFD8DC;
   font-size: 14px;
   padding: 16px 24px;
+  height: 52px; /* Match height of top bar */
   border-bottom: 1px solid #455A64;
 }
 
-#sidebar .nav li input{
-  margin-right: 100px;
+#sidebar .nav label {
+  margin: 0;
+  font-weight: normal
+}
+
+#sidebar .nav .switch {
+  float: right;
 }

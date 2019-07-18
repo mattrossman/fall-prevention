@@ -159,14 +159,54 @@ var trace3 = {
     type: 'scatter'
 };
 
-var data = [trace1, trace2, trace3];
+function togglePlot(plotId) {
+    traces[plotId].active = !traces[plotId].active;
+    Plotly.react('test-plot', getActiveData(), getActiveLayout())
+}
 
-var layout = {
-    height: 200 * data.length,
-    grid: {
-        xaxes: ['x'],
-        yaxes: data.map(trace => trace.yaxis)
+var traces = {
+    1: {
+        active: true,
+        trace: trace1
     },
-};
+    2: {
+        active: true,
+        trace: trace2
+    },
+    3: {
+        active: true,
+        trace: trace3
+    }
+}
 
-Plotly.newPlot('test-plot', data, layout, {responsive: true});
+function getActiveData() {
+    return Object.values(traces).filter(x => x.active).map(x => x.trace);
+}
+
+function getActiveLayout() {
+    const topMarginHeight = 50;
+    const subplotHeight = 300;
+    var layout = {
+        height: topMarginHeight + subplotHeight * Object.values(traces).filter(x => x.active).length,
+        margin: {
+            b: 0,
+            t: topMarginHeight
+        },
+        grid: {
+            xaxes: ['x'],
+            ygap: 0,
+            yaxes: Object.values(traces).filter(x => x.active).map(x => x.trace.yaxis),
+            // yaxes: data.map(trace => trace.yaxis)
+            xside: 'top plot'
+        },
+        xaxis: {
+            linecolor: 'black',
+            mirror: 'all',
+        }
+    };
+    return layout;
+}
+
+
+
+Plotly.newPlot('test-plot', getActiveData(), getActiveLayout(), {responsive: true});

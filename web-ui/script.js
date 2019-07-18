@@ -70,14 +70,10 @@ var myCallback = function(json) {
     console.log(dailyAverages);
 
     //create 1D arrays for each property to later be used as y values
-    propertyCols = {
-        avgSpeed: Object.values(dailyAverages).map(entry => entry.avgSpeed),
-        strideLength: Object.values(dailyAverages).map(entry => entry.strideLength),
-        supportTime: Object.values(dailyAverages).map(entry => entry.supportTime),
-        strideLengthCOV: Object.values(dailyAverages).map(entry => entry.strideLengthCOV),
-        stepWidthCOV: Object.values(dailyAverages).map(entry => entry.stepWidthCOV),
-        stepLengthVar: Object.values(dailyAverages).map(entry => entry.stepLengthVar)
-    }
+    propertyCols = {};
+    Object.keys(properties).forEach(function(property) {
+        propertyCols[property] = Object.values(dailyAverages).map(entry => entry[property])
+    });
 
     const domainSize = 1 / Object.keys(properties).length;
     const subplotHeight = 300;

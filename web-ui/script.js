@@ -1,3 +1,8 @@
+const gaitPlotConfig = {
+    marginTop: 50,
+    subplotHeight: 300
+}
+
 function loadJSON(callback) {
     var xobj = new XMLHttpRequest();
     xobj.overrideMimeType("application/json");
@@ -119,13 +124,12 @@ var myCallback = function(json) {
 }
 
 function plotlyGetInitLayout(properties) {
-    const topMarginHeight = 50;
-    const subplotHeight = 300;
+    const numActive = Object.values(properties).filter(p => p.active).length
     const layout = {
-        height: topMarginHeight + subplotHeight * Object.values(properties).filter(p => p.active).length,
+        height: gaitPlotConfig.marginTop + gaitPlotConfig.subplotHeight * numActive,
         margin: {
             b: 0,
-            t: topMarginHeight
+            t: gaitPlotConfig.marginTop
         },
         grid: {
             xaxes: ['x'],
@@ -165,10 +169,9 @@ function plotlyToggleSubplot(properties, property) {
 }
 
 function plotlyGetRelayout(properties) {
-    const topMarginHeight = 50;
-    const subplotHeight = 300;
-    var layout = {
-        'height': topMarginHeight + subplotHeight * Object.values(properties).filter(p => p.active).length,
+    const numActive = Object.values(properties).filter(p => p.active).length
+    const layout = {
+        'height': gaitPlotConfig.marginTop + gaitPlotConfig.subplotHeight * numActive,
         'grid.yaxes': Object.values(properties).filter(p => p.active).map(p => p.trace.yaxis)
     };
     return layout;

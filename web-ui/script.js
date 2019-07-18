@@ -12,6 +12,34 @@ function loadJSON(callback) {
 
 var myCallback = function(json) {
     allSegments = json;
+ 
+    const properties = {
+        avgSpeed : {
+            title: 'Average Speed',
+            units: '(cm/s)'
+        },
+        strideLength : {
+            title: 'Stride Length',
+            units: '(cm)'
+        },
+        supportTime : {
+            title: 'Support Time',
+            units: '(s)'
+        },
+        strideLengthCOV : {
+            title: 'Stride Length Variance',
+            units: '(%)'
+        },
+        stepWidthCOV : {
+            title: 'Step Width Variance',
+            units: '(%)'
+        },
+        stepLengthVar : {
+            title: 'Step Length Variance',
+            units: '(cm)'
+        } 
+    }
+    
 
     /*
         e.g.:
@@ -32,37 +60,50 @@ var myCallback = function(json) {
         return sum / segments.length;
     }
     dailyAverages = {};
-    const properties = ['avgSpeed', 'strideLength', 'supportTime', 'strideLengthCOV', 'stepWidthCOV', 'stepLengthVar'];
+
     for (let day in binsDaily) {
         dailyAverages[day] = {};
-        properties.forEach(function(property) {
+        Object.keys(properties).forEach(function(property) {
             dailyAverages[day][property] = propertyAverage(binsDaily[day], property)
         });
     }
     console.log(dailyAverages);
 
     //create 1D arrays for each property to later be used as y values
-    const propertyCols = {
-        avgSpeed: Object.values(dailyAverages).map(entry => entry.avgSpeed),
-        strideLength: Object.values(dailyAverages).map(entry => entry.strideLength),
-        supportTime: Object.values(dailyAverages).map(entry => entry.supportTime),
-        strideLengthCOV: Object.values(dailyAverages).map(entry => entry.strideLengthCOV),
-        stepWidthCOV: Object.values(dailyAverages).map(entry => entry.stepWidthCOV),
-        stepLengthVar: Object.values(dailyAverages).map(entry => entry.stepLengthVar)
-    }
+    propertyCols = {};
+    Object.keys(properties).forEach(function(property) {
+        propertyCols[property] = Object.values(dailyAverages).map(entry => entry[property])
+    });
 
-    const domainSize = 1 / properties.length;
+    const domainSize = 1 / Object.keys(properties).length;
     const subplotHeight = 300;
 
     const traces = [];
     const layout = {
         shapes: [],
-        height: subplotHeight * properties.length,
+        height: subplotHeight * Object.keys(properties).length,
         xaxis: {
             side: 'top',
         }
     };
-    properties.forEach(function(property, i) {
+    Object.keys(properties).forEach(function(property, i) {
+        /*sidebar*/
+        const li = document.createElement("li");
+        li.id = properties[property].title;
+        li.innerHTML = properties[property].title + "     ";
+        const input = document.createElement("input");
+        input.type = "checkbox"; input.id = property + 'Switch'; input.class = "checkbox-switch";
+        document.getElementById('toggle-container').appendChild(li);
+        document.getElementById(li.id).appendChild(input);
+        /* switches */
+        const el = document.getElementById(property + 'Switch');
+        const mySwitch = new Switch(el, {
+            checked: true,
+            size: 'small'
+            //onChange: function(){ $('#avgSpeedPlot').toggle() }
+        });
+
+        /* plotting */
         const axisSuffix = (i === 0 ? '' : i + 1);
         const trace = {
             x: Object.keys(dailyAverages).map(string => new Date(parseInt(string))),
@@ -72,42 +113,13 @@ var myCallback = function(json) {
             yaxis: 'y' + axisSuffix,
             marker: {size: 12}
         };
-        let plotTitle = '';
-        let plotUnits = '';
-        switch(property) {
-            case 'avgSpeed':
-                plotTitle = 'Average Speed';
-                plotUnits = '(cm/s)';
-                break;
-            case 'strideLength':
-                plotTitle = 'Stride Length';
-                plotUnits = '(cm)';
-                break;
-            case 'supportTime':
-                plotTitle = 'Support Time';
-                plotUnits = '(s)';
-                break;
-            case 'strideLengthCOV':
-                plotTitle = 'Stide Length Variance';
-                plotUnits = '(%)';
-                break;
-            case 'stepWidthCOV':
-                plotTitle = 'Step Width Variance';
-                plotUnits = '(%)';
-                break;
-            case 'stepLengthVar':
-                plotTitle = 'Step Length Variance';
-                plotUnits = '(cm)';
-                break;
-            default:
-                //error
-        }
+
         const yTop = 1 - i * domainSize;
         const yBottom = 1 - (i + 1) * domainSize;
         const yaxisLayout = {
             domain: [yBottom, yTop],
             title: {
-                text: plotTitle + ' ' + plotUnits
+                text: properties[property].title + ' ' + properties[property].units
             }
         };
         layout['yaxis' + axisSuffix] = yaxisLayout;
@@ -207,7 +219,5 @@ function getActiveLayout() {
     };
     return layout;
 }
-
-
 
 Plotly.newPlot('test-plot', getActiveData(), getActiveLayout(), {responsive: true});

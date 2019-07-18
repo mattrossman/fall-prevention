@@ -145,8 +145,10 @@ function plotlyGetInitLayout(properties) {
         height: gaitPlotConfig.marginTop + gaitPlotConfig.subplotHeight * numActive,
         margin: {
             b: 0,
+            r: 0,
             t: gaitPlotConfig.marginTop
         },
+        showlegend: false,
         grid: {
             xaxes: ['x'],
             ygap: 0,

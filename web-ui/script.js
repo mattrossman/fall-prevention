@@ -187,6 +187,7 @@ function getActiveLayout() {
     const topMarginHeight = 50;
     const subplotHeight = 300;
     var layout = {
+        uirevision:'true',  // Ensure the zoom/range is not reset
         height: topMarginHeight + subplotHeight * Object.values(traces).filter(x => x.active).length,
         margin: {
             b: 0,

@@ -3,6 +3,19 @@ const gaitPlotConfig = {
     subplotHeight: 300
 }
 
+const colorCycle = [
+    '#1f77b4',  // muted blue
+    '#ff7f0e',  // safety orange
+    '#2ca02c',  // cooked asparagus green
+    '#d62728',  // brick red
+    '#9467bd',  // muted purple
+    '#8c564b',  // chestnut brown
+    '#e377c2',  // raspberry yogurt pink
+    '#7f7f7f',  // middle gray
+    '#bcbd22',  // curry yellow-green
+    '#17becf'   // blue-teal
+]
+
 function loadJSON(callback) {
     var xobj = new XMLHttpRequest();
     xobj.overrideMimeType("application/json");
@@ -18,7 +31,7 @@ function loadJSON(callback) {
 var myCallback = function(json) {
     allSegments = json;
  
-    properties = {
+    const properties = {
         avgSpeed : {
             title: 'Average Speed',
             units: '(cm/s)',
@@ -117,7 +130,10 @@ var myCallback = function(json) {
             mode: 'markers+lines',
             type: 'scatter',
             yaxis: 'y' + axisSuffix,
-            marker: {size: 12}
+            marker: {size: 12},
+            line: {
+                color: colorCycle[i]
+            }
         }
     });
     Plotly.newPlot('plot', plotlyGetInitData(properties), plotlyGetInitLayout(properties));

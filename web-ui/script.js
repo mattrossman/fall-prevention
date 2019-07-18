@@ -107,16 +107,17 @@ var myCallback = function(json) {
 
     Object.keys(properties).forEach(function(property, i) {
         /*sidebar*/
-        const li = document.createElement("li");
-        li.id = properties[property].title;
-        li.innerHTML = properties[property].title + "     ";
+        const entry = document.createElement("li");
         const input = document.createElement("input");
+        const label = document.createElement("label");
         input.type = "checkbox"; input.id = property + 'Switch'; input.class = "checkbox-switch";
-        document.getElementById('toggle-container').appendChild(li);
-        document.getElementById(li.id).appendChild(input);
+        label.htmlFor = input.id;
+        label.appendChild(document.createTextNode(properties[property].title))
+        entry.appendChild(label);
+        entry.appendChild(input);
+        document.getElementById('toggle-container').appendChild(entry);
         /* switches */
-        const el = document.getElementById(property + 'Switch');
-        const mySwitch = new Switch(el, {
+        const mySwitch = new Switch(input, {
             checked: true,
             size: 'small',
             onChange: function(){ plotlyToggleSubplot(properties, property) }

@@ -169,7 +169,15 @@ var trace3 = {
 
 function togglePlotTest(plotId) {
     traces[plotId].active = !traces[plotId].active;
-    Plotly.react('test-plot', getActiveDataTest(), getActiveLayoutTest())
+    if (traces[plotId].active) {
+        const newIndex = Object.entries(traces).filter(([k, v]) => v.active).map(([k, v]) => k).indexOf(plotId.toString())
+        Plotly.addTraces('test-plot', traces[plotId].trace, newIndex);
+    }
+    else {
+        const oldIndex = Object.entries(traces).filter(([k, v]) => (v.active || k == plotId)).map(([k, v]) => k).indexOf(plotId.toString())
+        Plotly.deleteTraces('test-plot', oldIndex);
+    }
+    Plotly.relayout('test-plot', getRelayoutTest())
 }
 
 var traces = {
@@ -191,7 +199,18 @@ function getActiveDataTest() {
     return Object.values(traces).filter(x => x.active).map(x => x.trace);
 }
 
-function getActiveLayoutTest() {
+function getRelayoutTest() {
+    const topMarginHeight = 50;
+    const subplotHeight = 300;
+    var layout = {
+        // uirevision:'true',  // Ensure the zoom/range is not reset
+        'height': topMarginHeight + subplotHeight * Object.values(traces).filter(x => x.active).length,
+        'grid.yaxes': Object.values(traces).filter(x => x.active).map(x => x.trace.yaxis)
+    };
+    return layout;
+}
+
+function initLayoutTest() {
     const topMarginHeight = 50;
     const subplotHeight = 300;
     var layout = {
@@ -225,4 +244,4 @@ function getActiveLayoutTest() {
     return layout;
 }
 
-Plotly.newPlot('test-plot', getActiveDataTest(), getActiveLayoutTest(), {responsive: true});
+Plotly.newPlot('test-plot', getActiveDataTest(), initLayoutTest(), {responsive: true});

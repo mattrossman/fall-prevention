@@ -92,8 +92,33 @@ var myCallback = function(json) {
             type: 'scatter',
             yaxis: 'y' + axisSuffix,
             marker: {size: 12}
+<<<<<<< HEAD
+=======
+        }; 
+        var layout = {
+            title: {
+              text: propertyInfo[property][0],
+              font: {
+                family: 'Arial, monospace', 
+                size: 24
+              },
+              xref: 'paper',
+              x: 0.00,
+            },
+            yaxis: {
+                title: {
+                  text: propertyInfo[property][0] + ' ' + propertyInfo[property][1],
+                  font: {
+                    family: 'Arial, monospace',
+                    size: 14,
+                    color: '#7f7f7f'
+                  }
+                }
+              }
+>>>>>>> web-ui
         };
 
+<<<<<<< HEAD
         const yTop = 1 - i * domainSize;
         const yBottom = 1 - (i + 1) * domainSize;
         const yaxisLayout = {
@@ -115,6 +140,19 @@ var myCallback = function(json) {
         };
         layout.shapes.push(divider);
         traces.push(trace);
+=======
+        /*sidebar*/
+        const li = document.createElement("li");
+        li.id = propertyInfo[property][0];
+        li.innerHTML = propertyInfo[property][0] + "     ";
+        const input = document.createElement("input");
+        input.type = "checkbox"; input.id = property + 'Switch'; input.class = "checkbox-switch";
+        document.getElementById('toggle-container').appendChild(li);
+        document.getElementById(li.id).appendChild(input);
+        
+        Plotly.newPlot(property + 'Plot', [trace], layout);
+        
+>>>>>>> web-ui
     });
     Plotly.newPlot('plot', traces, layout);
 }

@@ -94,42 +94,12 @@ var myCallback = function(json) {
             marker: {size: 12}
         };
 
-        let plotTitle = '';
-        let plotUnits = '';
-        switch(property) {
-            case 'avgSpeed':
-                plotTitle = 'Average Speed';
-                plotUnits = '(cm/s)';
-                break;
-            case 'strideLength':
-                plotTitle = 'Stride Length';
-                plotUnits = '(cm)';
-                break;
-            case 'supportTime':
-                plotTitle = 'Support Time';
-                plotUnits = '(s)';
-                break;
-            case 'strideLengthCOV':
-                plotTitle = 'Stide Length Variance';
-                plotUnits = '(%)';
-                break;
-            case 'stepWidthCOV':
-                plotTitle = 'Step Width Variance';
-                plotUnits = '(%)';
-                break;
-            case 'stepLengthVar':
-                plotTitle = 'Step Length Variance';
-                plotUnits = '(cm)';
-                break;
-            default:
-                //error
-        }
         const yTop = 1 - i * domainSize;
         const yBottom = 1 - (i + 1) * domainSize;
         const yaxisLayout = {
             domain: [yBottom, yTop],
             title: {
-                text: plotTitle + ' ' + plotUnits
+                text: propertInfo[property][0] + ' ' + propertInfo[property][1]
             }
         };
         layout['yaxis' + axisSuffix] = yaxisLayout;

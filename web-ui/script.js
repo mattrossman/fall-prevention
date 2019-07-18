@@ -211,6 +211,15 @@ function getActiveLayoutTest() {
         xaxis: {
             linecolor: 'black',
             mirror: 'all',
+        },
+        yaxis: {
+            title: { text: 'Y1' }
+        },
+        yaxis2: {
+            title: { text: 'Y2' }
+        },
+        yaxis3: {
+            title: { text: 'Y3' }
         }
     };
     return layout;

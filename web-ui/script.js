@@ -136,7 +136,7 @@ var myCallback = function(json) {
             }
         }
     });
-    Plotly.newPlot('plot', plotlyGetInitData(properties), plotlyGetInitLayout(properties));
+    Plotly.newPlot('plot', plotlyGetInitData(properties), plotlyGetInitLayout(properties), {responsive: true});
 }
 
 function plotlyGetInitLayout(properties) {

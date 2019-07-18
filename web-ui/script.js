@@ -13,14 +13,31 @@ function loadJSON(callback) {
 var myCallback = function(json) {
     allSegments = json;
  
-    const properties = ['avgSpeed', 'strideLength', 'supportTime', 'strideLengthCOV', 'stepWidthCOV', 'stepLengthVar'];
-    propertyInfo = {
-        avgSpeed : ['Average Speed', '(cm/s)'],
-        strideLength : ['Stride Length', '(cm)'],
-        supportTime : ['Support Time', '(s)'],
-        strideLengthCOV : ['Stride Length Variance', '(%)'],
-        stepWidthCOV : ['Step Width Variance', '(%)'],
-        stepLengthVar : ['Step Length Variance', '(cm)'] 
+    const properties = {
+        avgSpeed : {
+            title: 'Average Speed',
+            units: '(cm/s)'
+        },
+        strideLength : {
+            title: 'Stride Length',
+            units: '(cm)'
+        },
+        supportTime : {
+            title: 'Support Time',
+            units: '(s)'
+        },
+        strideLengthCOV : {
+            title: 'Stride Length Variance',
+            units: '(%)'
+        },
+        stepWidthCOV : {
+            title: 'Step Width Variance',
+            units: '(%)'
+        },
+        stepLengthVar : {
+            title: 'Step Length Variance',
+            units: '(cm)'
+        } 
     }
     
 
@@ -46,14 +63,14 @@ var myCallback = function(json) {
 
     for (let day in binsDaily) {
         dailyAverages[day] = {};
-        properties.forEach(function(property) {
+        Object.keys(properties).forEach(function(property) {
             dailyAverages[day][property] = propertyAverage(binsDaily[day], property)
         });
     }
     console.log(dailyAverages);
 
     //create 1D arrays for each property to later be used as y values
-    const propertyCols = {
+    propertyCols = {
         avgSpeed: Object.values(dailyAverages).map(entry => entry.avgSpeed),
         strideLength: Object.values(dailyAverages).map(entry => entry.strideLength),
         supportTime: Object.values(dailyAverages).map(entry => entry.supportTime),
@@ -62,22 +79,22 @@ var myCallback = function(json) {
         stepLengthVar: Object.values(dailyAverages).map(entry => entry.stepLengthVar)
     }
 
-    const domainSize = 1 / properties.length;
+    const domainSize = 1 / Object.keys(properties).length;
     const subplotHeight = 300;
 
     const traces = [];
     const layout = {
         shapes: [],
-        height: subplotHeight * properties.length,
+        height: subplotHeight * Object.keys(properties).length,
         xaxis: {
             side: 'top'
         }
     };
-    properties.forEach(function(property, i) {
+    Object.keys(properties).forEach(function(property, i) {
         /*sidebar*/
         const li = document.createElement("li");
-        li.id = propertyInfo[property][0];
-        li.innerHTML = propertyInfo[property][0] + "     ";
+        li.id = properties[property].title;
+        li.innerHTML = properties[property].title + "     ";
         const input = document.createElement("input");
         input.type = "checkbox"; input.id = property + 'Switch'; input.class = "checkbox-switch";
         document.getElementById('toggle-container').appendChild(li);
@@ -106,7 +123,7 @@ var myCallback = function(json) {
         const yaxisLayout = {
             domain: [yBottom, yTop],
             title: {
-                text: propertyInfo[property][0] + ' ' + propertyInfo[property][1]
+                text: properties[property].title + ' ' + properties[property].units
             }
         };
         layout['yaxis' + axisSuffix] = yaxisLayout;

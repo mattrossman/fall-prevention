@@ -60,7 +60,11 @@ body {
   line-height: 35px;
   background: none;
   color: #CFD8DC;
-  font-size: 18px;
+  font-size: 14px;
   padding: 16px 24px;
   border-bottom: 1px solid #455A64;
+}
+
+#sidebar .nav li input{
+  margin-right: 100px;
 }

@@ -104,6 +104,8 @@ var myCallback = function(json) {
         });
 
         /* plotting */
+        
+
         const axisSuffix = (i === 0 ? '' : i + 1);
         const trace = {
             x: Object.keys(dailyAverages).map(string => new Date(parseInt(string))),
@@ -141,12 +143,6 @@ var myCallback = function(json) {
 
 loadJSON(myCallback);
 
-const el = document.querySelector('.checkbox-switch');
-const mySwitch = new Switch(el, {
-    checked: true,
-    onChange: function(){ $('#avgSpeedPlot').toggle() }
-});
-
 var trace1 = {
     x: [0, 1, 2],
     y: [10, 11, 12],
@@ -171,9 +167,9 @@ var trace3 = {
     type: 'scatter'
 };
 
-function togglePlot(plotId) {
+function togglePlotTest(plotId) {
     traces[plotId].active = !traces[plotId].active;
-    Plotly.react('test-plot', getActiveData(), getActiveLayout())
+    Plotly.react('test-plot', getActiveDataTest(), getActiveLayoutTest())
 }
 
 var traces = {
@@ -191,11 +187,11 @@ var traces = {
     }
 }
 
-function getActiveData() {
+function getActiveDataTest() {
     return Object.values(traces).filter(x => x.active).map(x => x.trace);
 }
 
-function getActiveLayout() {
+function getActiveLayoutTest() {
     const topMarginHeight = 50;
     const subplotHeight = 300;
     var layout = {
@@ -220,4 +216,4 @@ function getActiveLayout() {
     return layout;
 }
 
-Plotly.newPlot('test-plot', getActiveData(), getActiveLayout(), {responsive: true});
+Plotly.newPlot('test-plot', getActiveDataTest(), getActiveLayoutTest(), {responsive: true});

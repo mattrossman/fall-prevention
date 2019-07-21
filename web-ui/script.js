@@ -140,6 +140,80 @@ var myCallback = function(json) {
     Plotly.newPlot('plot', plotlyGetInitData(properties), plotlyGetInitLayout(properties), {responsive: true});
 }
 
+//ThreeJS Renderer
+threejs();
+
+function threejs() {
+    const canvas = document.querySelector('#c');
+    const renderer = new THREE.WebGLRenderer({canvas});
+
+    //camera
+    const fov = 75;
+    const aspect = 2;  // the canvas default
+    const near = 0.1;
+    const far = 5;
+    const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+    camera.position.z = 2;
+
+    //scene
+    const scene = new THREE.Scene();
+
+    //light
+    {
+        const color = 0xFFFFFF;
+        const intensity = 1;
+        const light = new THREE.DirectionalLight(color, intensity);
+        light.position.set(-1, 2, 4);
+        scene.add(light);
+    }
+
+    //box
+    const boxWidth = 1;
+    const boxHeight = 1;
+    const boxDepth = 1;
+    const geometry = new THREE.BoxGeometry(boxWidth, boxHeight, boxDepth);
+    const material = new THREE.MeshPhongMaterial({color: 0x44aa88});
+    const cube = new THREE.Mesh(geometry, material);
+
+    scene.add(cube);
+    renderer.render(scene, camera);
+
+    //returns whether resolution needs to be changed because of window size change
+    function resizeRendererToDisplaySize(renderer) {
+        const canvas = renderer.domElement;
+        const width = canvas.clientWidth;
+        const height = canvas.clientHeight;
+        const needResize = canvas.width !== width || canvas.height !== height;
+        if (needResize) {
+          renderer.setSize(width, height, false);
+        }
+        return needResize;
+      }
+
+    //animation
+    function render(time) {
+        time *= 0.001;  // convert time to seconds
+    
+        //prevent blurriness when window stretches
+        if (resizeRendererToDisplaySize(renderer)) {
+            const canvas = renderer.domElement;
+            camera.aspect = canvas.clientWidth / canvas.clientHeight;
+            camera.updateProjectionMatrix();
+        }
+
+        cube.rotation.x = time;
+        cube.rotation.y = time;
+    
+        renderer.render(scene, camera);
+    
+        requestAnimationFrame(render);
+      }
+    requestAnimationFrame(render);
+
+    //document.getElementById("c").appendChild( renderer.domElement );
+
+}
+
 function plotlyGetInitLayout(properties) {
     const numActive = Object.values(properties).filter(p => p.active).length
     const layout = {
@@ -194,6 +268,7 @@ function plotlyGetRelayout(properties) {
         'grid.yaxes': Object.values(properties).filter(p => p.active).map(p => p.trace.yaxis)
     };
     return layout;
+    
 }
 
 loadJSON(myCallback);

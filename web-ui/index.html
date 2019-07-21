@@ -15,6 +15,7 @@
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/material-design-iconic-font/2.2.0/css/material-design-iconic-font.min.css">
         <link rel="stylesheet" href="css/navbar.css">
         <link rel="stylesheet" href="css/switch.css">
+        <link rel="stylesheet" href="css/threejs.css">
 
         <title>Hello, world!</title>
 
@@ -49,7 +50,8 @@
                     <h1>Hello, world!</h1>
 
                     <div id="plot">
-                    </div>
+                    </div>                    
+                    <canvas id="c"></canvas>
                 </div>
             </div>
         </div>
@@ -62,6 +64,8 @@
         <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
         <script src='https://cdn.jsdelivr.net/lodash/4.17.2/lodash.min.js'></script>
         <script src="js/switch.js"></script>
+        <script src="js/three.min.js"></script>
+        <script src="//cdn.rawgit.com/mrdoob/three.js/master/build/three.min.js"></script>
         <script src="script.js"></script>
     </body>
 </html>

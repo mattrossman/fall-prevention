@@ -268,7 +268,7 @@ function plotlyGetRelayout(properties) {
         'grid.yaxes': Object.values(properties).filter(p => p.active).map(p => p.trace.yaxis)
     };
     return layout;
-
+    
 }
 
 loadJSON(myCallback);

@@ -141,39 +141,76 @@ var myCallback = function(json) {
 }
 
 //ThreeJS Renderer
-var camera, scene, renderer;
-var geometry, material, mesh;
+threejs();
 
-init();
-animate();
+function threejs() {
+    const canvas = document.querySelector('#c');
+    const renderer = new THREE.WebGLRenderer({canvas});
 
-function init() {
+    //camera
+    const fov = 75;
+    const aspect = 2;  // the canvas default
+    const near = 0.1;
+    const far = 5;
+    const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+    camera.position.z = 2;
 
-    camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 10 );
-    camera.position.z = 1;
+    //scene
+    const scene = new THREE.Scene();
 
-    scene = new THREE.Scene();
+    //light
+    {
+        const color = 0xFFFFFF;
+        const intensity = 1;
+        const light = new THREE.DirectionalLight(color, intensity);
+        light.position.set(-1, 2, 4);
+        scene.add(light);
+    }
 
-    geometry = new THREE.BoxGeometry( 0.2, 0.2, 0.2 );
-    material = new THREE.MeshNormalMaterial();
+    //box
+    const boxWidth = 1;
+    const boxHeight = 1;
+    const boxDepth = 1;
+    const geometry = new THREE.BoxGeometry(boxWidth, boxHeight, boxDepth);
+    const material = new THREE.MeshPhongMaterial({color: 0x44aa88});
+    const cube = new THREE.Mesh(geometry, material);
 
-    mesh = new THREE.Mesh( geometry, material );
-    scene.add( mesh );
+    scene.add(cube);
+    renderer.render(scene, camera);
 
-    renderer = new THREE.WebGLRenderer( { antialias: true } );
-    renderer.setSize( window.innerWidth, window.innerHeight );
-    document.getElementById('rendering').appendChild( renderer.domElement );
+    //returns whether resolution needs to be changed because of window size change
+    function resizeRendererToDisplaySize(renderer) {
+        const canvas = renderer.domElement;
+        const width = canvas.clientWidth;
+        const height = canvas.clientHeight;
+        const needResize = canvas.width !== width || canvas.height !== height;
+        if (needResize) {
+          renderer.setSize(width, height, false);
+        }
+        return needResize;
+      }
 
-}
+    //animation
+    function render(time) {
+        time *= 0.001;  // convert time to seconds
+    
+        //prevent blurriness when window stretches
+        if (resizeRendererToDisplaySize(renderer)) {
+            const canvas = renderer.domElement;
+            camera.aspect = canvas.clientWidth / canvas.clientHeight;
+            camera.updateProjectionMatrix();
+        }
 
-function animate() {
+        cube.rotation.x = time;
+        cube.rotation.y = time;
+    
+        renderer.render(scene, camera);
+    
+        requestAnimationFrame(render);
+      }
+    requestAnimationFrame(render);
 
-    requestAnimationFrame( animate );
-
-    mesh.rotation.x += 0.01;
-    mesh.rotation.y += 0.02;
-
-    renderer.render( scene, camera );
+    //document.getElementById("c").appendChild( renderer.domElement );
 
 }
 

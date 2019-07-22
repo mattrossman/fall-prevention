@@ -116,7 +116,7 @@ class Board:
             Contains columns for [value, x, y]
         """
         arr = self.lookup_mapped_arr(dt=dt)
-        data = [{'value': val, 'x': x + self.x, 'y': y + self.y}
+        data = [{'x': x + self.x, 'y': y + self.y, 'value': val}
                 for (y, row) in enumerate(arr) for (x, val) in enumerate(row)]
         return pd.DataFrame(data)
 
@@ -168,7 +168,7 @@ class Floor:
             Contains columns for [value, x, y]
         """
         arr = self.lookup_mapped_arr(dt=dt)
-        data = [{'value': val, 'x': x, 'y': y}
+        data = [{'x': x, 'y': y, 'value': val}
                 for (y, row) in enumerate(arr) for (x, val) in enumerate(row)]
         return pd.DataFrame(data)
 

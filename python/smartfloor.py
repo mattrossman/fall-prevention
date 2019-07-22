@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
+from typing import List, Tuple
 
 
 class Board:
@@ -57,12 +58,36 @@ class Board:
         self.x = x
         self.y = y
 
-    def mapped_entry_arr(self, ix: datetime):
+    def lookup(self, dt: datetime) -> pd.Series:
+        """Lookup an entry on the board, and interpolate if it doesn't exist
+
+        Parameters
+        ----------
+        dt : datetime
+            Timestamp to lookup
+
+        Returns
+        -------
+        data : pandas.Series
+            Either the exact entry at the given timestamp, or an interpolated estimate
+        """
+        try:  # Exact match
+            return self.df.loc[dt]
+        except KeyError:  # Perform interpolation
+            prev_iloc = self.df.index.get_loc(dt, method='ffill')
+            s_prev = self.df.iloc[prev_iloc]
+            s_next = self.df.iloc[prev_iloc + 1]
+            progress = (dt - s_prev.name) / (s_next.name - s_prev.name)
+            s_interpolate = s_prev + progress * (s_next - s_prev)
+            s_interpolate.name = dt
+            return s_interpolate
+
+    def mapped_entry_arr(self, dt: datetime) -> np.ndarray:
         """Get an entry from this board with readings mapped to their correct array positions
 
         Parameters
         ----------
-        ix : datetime
+        dt : datetime
             The entry index to look up
 
         Returns
@@ -70,14 +95,14 @@ class Board:
         arr : numpy.ndarray
             A 2D array of readings at this index, where each root element is a row on the board
         """
-        return np.array([[self.df.loc[ix][sensor_id] for sensor_id in row] for row in Board.sensor_map])
+        return np.array([[self.df.loc[dt][sensor_id] for sensor_id in row] for row in Board.sensor_map])
 
-    def mapped_entry_df(self, ix: datetime):
+    def mapped_entry_df(self, dt: datetime) -> pd.DataFrame:
         """Get an entry from this board as a DataFrame containing the appropriate coordinates of each entry
 
         Parameters
         ----------
-        ix : datetime
+        dt : datetime
             The entry index to look up
 
         Returns
@@ -85,9 +110,48 @@ class Board:
         df : pandas.DataFrame
             Contains columns for [value, x, y]
         """
-        arr = self.mapped_entry_arr(ix=ix)
-        data = [{'value': val, 'x': x, 'y': y} for (y, row) in enumerate(arr) for (x, val) in enumerate(row)]
+        arr = self.mapped_entry_arr(dt=dt)
+        data = [{'value': val, 'x': x + self.x, 'y': y + self.y}
+                for (y, row) in enumerate(arr) for (x, val) in enumerate(row)]
         return pd.DataFrame(data)
+
+
+class Floor:
+    """A strip of SmartFloor boards
+
+    """
+    def __init__(self, df: pd.DataFrame, board_ids: List[int]):
+        """
+
+        Parameters
+        ----------
+        df : pandas.DataFrame
+            Raw SmartFloor recording
+        board_ids : List[int]
+            List of board IDs in the order they appear left to right on the floor
+        """
+        self.df = df
+        self.boards = [Board(df, board_id, x * Board.width, 0)
+                       for (x, board_id) in enumerate(board_ids)]
+
+    def cop(self, ix: datetime) -> Tuple[float, float]:
+        """
+
+        Parameters
+        ----------
+        ix : timestamp to lookup
+
+        Returns
+        -------
+        x : float
+        y : float
+
+        Notes
+        -----
+        x_cm = sum(x * m) / sum(m)
+        So I will want a big list of each (x, y, m) entry for the whole
+        """
+
 
 
 columns = ['board_id', 'time', *range(48)]  # column names
@@ -97,3 +161,5 @@ df_raw = pd.read_csv('1_131.2lbs.csv', engine='python', names=columns, index_col
 df_raw.index = pd.to_datetime(df_raw.index, unit='ms')
 b17 = Board(df_raw, board_id=17, x=0, y=0)
 dt = b17.df.index[0]
+dt_in = pd.Timestamp('2018-11-11 01:40:46')
+floor = Floor(df_raw, [19, 17, 21, 18])

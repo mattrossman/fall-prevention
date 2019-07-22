@@ -135,8 +135,6 @@ var myCallback = function(json) {
             onChange: function(){ plotlyToggleSubplot(properties, property) }
         });
 
-        const lowerBound = properties[property]['thresholdMean'] - 2*properties[property]['thresholdSD'];
-        const upperBound = properties[property]['thresholdMean'] + 2*properties[property]['thresholdSD'];
         // Create traces for each property
         const axisSuffix = (i === 0 ? '' : i + 1);
         properties[property]['trace'] = {
@@ -146,11 +144,20 @@ var myCallback = function(json) {
             type: 'scatter',
             yaxis: 'y' + axisSuffix,
             marker: {
-                size: 12,         
-                color: (propertyCols[property] >=  upperBound || propertyCols[property] <=  lowerBound)? '#FF0000' : colorCycle[i]
+                size: 12,      
+                color: colorCycle[i]
             },
             line: {
                 color: colorCycle[i]
+            }
+        }
+        //threshold
+        const lowerBound = properties[property]['thresholdMean'] - 1*properties[property]['thresholdSD'];
+        const upperBound = properties[property]['thresholdMean'] + 1*properties[property]['thresholdSD'];
+        for(const index in propertyCols[property]) {
+        //propertyCols[property].forEach(function(index) {  
+            if (propertyCols[property][index] >=  upperBound || propertyCols[property][index] <=  lowerBound) {
+                properties[property]['trace']['marker']['color'] = '#FF0000';
             }
         }
     });

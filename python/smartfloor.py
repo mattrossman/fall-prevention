@@ -127,7 +127,6 @@ class Floor:
     """
     def __init__(self, df: pd.DataFrame, board_ids: List[int]):
         """
-
         Parameters
         ----------
         df : pandas.DataFrame
@@ -138,6 +137,40 @@ class Floor:
         self.df = df
         self.boards = [Board(df, board_id, x * Board.width, 0)
                        for (x, board_id) in enumerate(board_ids)]
+
+    def lookup_mapped_arr(self, dt: datetime) -> np.ndarray:
+        """Get an entry from the floor with readings mapped to their correct array positions
+
+        Parameters
+        ----------
+        dt : datetime
+            The entry index to look up
+
+        Returns
+        -------
+        data : numpy.ndarray
+            A 2D array of readings at this timestamp, where each root element is a row on the floor
+        """
+        arrays = [board.lookup_mapped_arr(dt) for board in self.boards]
+        return np.concatenate(arrays, axis=1)
+
+    def lookup_mapped_df(self, dt: datetime) -> pd.DataFrame:
+        """Get an entry from the floor as a DataFrame containing the appropriate coordinates of each entry
+
+        Parameters
+        ----------
+        dt : datetime
+            The entry index to look up
+
+        Returns
+        -------
+        data : pandas.DataFrame
+            Contains columns for [value, x, y]
+        """
+        arr = self.lookup_mapped_arr(dt=dt)
+        data = [{'value': val, 'x': x, 'y': y}
+                for (y, row) in enumerate(arr) for (x, val) in enumerate(row)]
+        return pd.DataFrame(data)
 
     def cop(self, ix: datetime) -> Tuple[float, float]:
         """
@@ -166,5 +199,6 @@ df_raw = pd.read_csv('1_131.2lbs.csv', engine='python', names=columns, index_col
 df_raw.index = pd.to_datetime(df_raw.index, unit='ms')
 b17 = Board(df_raw, board_id=17, x=0, y=0)
 dt = b17.df.index[0]
+dt2 = b17.df.index[5]
 dt_in = pd.Timestamp('2018-11-11 01:40:46')
 floor = Floor(df_raw, [19, 17, 21, 18])

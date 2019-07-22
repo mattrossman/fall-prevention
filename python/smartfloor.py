@@ -66,6 +66,11 @@ class Board:
         dt : datetime
             Timestamp to lookup
 
+        Raises
+        ------
+        KeyError
+            When the lookup key is outside of the interpolatable range
+
         Returns
         -------
         data : pandas.Series
@@ -82,7 +87,7 @@ class Board:
             s_interpolate.name = dt
             return s_interpolate
 
-    def mapped_entry_arr(self, dt: datetime) -> np.ndarray:
+    def lookup_mapped_arr(self, dt: datetime) -> np.ndarray:
         """Get an entry from this board with readings mapped to their correct array positions
 
         Parameters
@@ -95,9 +100,9 @@ class Board:
         arr : numpy.ndarray
             A 2D array of readings at this index, where each root element is a row on the board
         """
-        return np.array([[self.df.loc[dt][sensor_id] for sensor_id in row] for row in Board.sensor_map])
+        return np.array([[self.lookup(dt)[sensor_id] for sensor_id in row] for row in Board.sensor_map])
 
-    def mapped_entry_df(self, dt: datetime) -> pd.DataFrame:
+    def lookup_mapped_df(self, dt: datetime) -> pd.DataFrame:
         """Get an entry from this board as a DataFrame containing the appropriate coordinates of each entry
 
         Parameters
@@ -110,7 +115,7 @@ class Board:
         df : pandas.DataFrame
             Contains columns for [value, x, y]
         """
-        arr = self.mapped_entry_arr(dt=dt)
+        arr = self.lookup_mapped_arr(dt=dt)
         data = [{'value': val, 'x': x + self.x, 'y': y + self.y}
                 for (y, row) in enumerate(arr) for (x, val) in enumerate(row)]
         return pd.DataFrame(data)

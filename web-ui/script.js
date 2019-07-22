@@ -152,8 +152,8 @@ var myCallback = function(json) {
             }
         }
         //threshold
-        const lowerBound = properties[property]['thresholdMean'] - 1*properties[property]['thresholdSD'];
-        const upperBound = properties[property]['thresholdMean'] + 1*properties[property]['thresholdSD'];
+        const lowerBound = properties[property]['thresholdMean'] - 2*properties[property]['thresholdSD'];
+        const upperBound = properties[property]['thresholdMean'] + 2*properties[property]['thresholdSD'];
         for(const index in propertyCols[property]) {
         //propertyCols[property].forEach(function(index) {  
             if (propertyCols[property][index] >=  upperBound || propertyCols[property][index] <=  lowerBound) {
@@ -161,7 +161,8 @@ var myCallback = function(json) {
             }
         }
     });
-    Plotly.newPlot('plot', plotlyGetInitData(properties), plotlyGetInitLayout(properties), {responsive: true});
+    
+    Plotly.newPlot('plot', plotlyGetInitData(properties), plotlyGetInitLayout(properties), {responsive: true, displayModeBar: false});
 }
 
 //ThreeJS Renderer
@@ -257,7 +258,8 @@ function plotlyGetInitLayout(properties) {
         xaxis: {
             linecolor: 'black',
             mirror: 'all',
-        }
+        },
+        dragmode: 'pan'
     }
     Object.values(properties).forEach(function(propertyVal, i) {
         const axisSuffix = (i === 0 ? '' : i + 1);

@@ -151,15 +151,15 @@ var myCallback = function(json) {
                 color: colorCycle[i]
             }
         }
-        //threshold
-        const lowerBound = properties[property]['thresholdMean'] - 2*properties[property]['thresholdSD'];
-        const upperBound = properties[property]['thresholdMean'] + 2*properties[property]['thresholdSD'];
+        /*threshold
+        const lowerBound = properties[property]['thresholdMean']; - 2*properties[property]['thresholdSD'];
+        const upperBound = properties[property]['thresholdMean']; + 2*properties[property]['thresholdSD'];
         for(const index in propertyCols[property]) {
-        //propertyCols[property].forEach(function(index) {  
             if (propertyCols[property][index] >=  upperBound || propertyCols[property][index] <=  lowerBound) {
                 properties[property]['trace']['marker']['color'] = '#FF0000';
             }
         }
+        */
     });
     
     Plotly.newPlot('plot', plotlyGetInitData(properties), plotlyGetInitLayout(properties), {responsive: true, displayModeBar: false});
@@ -259,6 +259,7 @@ function plotlyGetInitLayout(properties) {
             linecolor: 'black',
             mirror: 'all',
         },
+        shapes: [],
         dragmode: 'pan'
     }
     Object.values(properties).forEach(function(propertyVal, i) {
@@ -266,6 +267,49 @@ function plotlyGetInitLayout(properties) {
         layout['yaxis' + axisSuffix] = {
             title: { text: propertyVal.title + ' ' + propertyVal.units }
         }
+    });
+    Object.keys(properties).forEach(function(property, i) {
+
+        //add upper bound alert shape
+        const upperBound = properties[property]['thresholdMean'] + 2*properties[property]['thresholdSD'];
+        const upperShape = {
+            type : 'rect',
+            xref : 'paper',
+            // y-reference is assigned to the y values
+            yref : properties[property]['trace']['yaxis'],
+            x0 : 0,
+            y0 : upperBound,
+            x1 : 1,
+            y1 : upperBound + 1, //TODO
+            fillcolor : '#FF0000',
+            opacity : 0.2,
+            line : {
+                width: 0
+            },
+            width : 0
+        };
+
+        //add lower bound alert shape
+        const lowerBound = properties[property]['thresholdMean'] - 2*properties[property]['thresholdSD'];
+        const lowerShape = {
+            type : 'rect',
+            xref : 'paper',
+            // y-reference is assigned to the y values
+            yref : properties[property]['trace']['yaxis'],
+            x0 : 0,
+            y0 : lowerBound - 1, //TODO
+            x1 : 1,
+            y1 : lowerBound,
+            fillcolor : '#FFFF00',
+            opacity : 0.2,
+            line : {
+                width: 0
+            },
+            width : 0
+        };
+
+        layout.shapes.push(upperShape);
+        layout.shapes.push(lowerShape);
     });
     return layout;
 }

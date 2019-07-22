@@ -7,7 +7,6 @@ const colorCycle = [
     '#1f77b4',  // muted blue
     '#ff7f0e',  // safety orange
     '#2ca02c',  // cooked asparagus green
-    '#d62728',  // brick red
     '#9467bd',  // muted purple
     '#8c564b',  // chestnut brown
     '#e377c2',  // raspberry yogurt pink
@@ -36,37 +35,50 @@ var myCallback = function(json) {
             title: 'Average Speed',
             units: '(cm/s)',
             active: true,
-            trace: {}
+            trace: {},
+            thresholdMean: 94.25, /* cm/s */ 
+            thresholdSD: 23.60
         },
         strideLength : {
             title: 'Stride Length',
             units: '(cm)',
             active: true,
-            trace: {}
+            trace: {},
+            thresholdMean: 111.15, /* cm */
+            thresholdSD: 22.53
+
         },
         supportTime : {
             title: 'Support Time',
             units: '(s)',
             active: true,
-            trace: {}
+            trace: {},
+            thresholdMean: 0.29, /* s */ 
+            thresholdSD: 0.07
         },
         strideLengthCOV : {
             title: 'Stride Length Variance',
             units: '(%)',
             active: true,
-            trace: {}
+            trace: {},
+            thresholdMean: 2.63, /* % */
+            thresholdSD: 1.62
         },
         stepWidthCOV : {
             title: 'Step Width Variance',
             units: '(%)',
             active: true,
-            trace: {}
+            trace: {},
+            thresholdMean: 19.6, /* % */
+            thresholdSD: 16.6
         },
         stepLengthVar : {
             title: 'Step Length Variance',
             units: '(cm)',
             active: true,
-            trace: {}
+            trace: {},
+            thresholdMean: .69, /* cm */
+            thresholdSD: .157 
         } 
     }
     
@@ -123,6 +135,8 @@ var myCallback = function(json) {
             onChange: function(){ plotlyToggleSubplot(properties, property) }
         });
 
+        const lowerBound = properties[property]['thresholdMean'] - 2*properties[property]['thresholdSD'];
+        const upperBound = properties[property]['thresholdMean'] + 2*properties[property]['thresholdSD'];
         // Create traces for each property
         const axisSuffix = (i === 0 ? '' : i + 1);
         properties[property]['trace'] = {
@@ -131,7 +145,10 @@ var myCallback = function(json) {
             mode: 'markers+lines',
             type: 'scatter',
             yaxis: 'y' + axisSuffix,
-            marker: {size: 12},
+            marker: {
+                size: 12,         
+                color: (propertyCols[property] >=  upperBound || propertyCols[property] <=  lowerBound)? '#FF0000' : colorCycle[i]
+            },
             line: {
                 color: colorCycle[i]
             }

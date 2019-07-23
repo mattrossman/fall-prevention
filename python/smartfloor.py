@@ -134,6 +134,7 @@ class Floor:
                        for (x, board_id) in enumerate(Floor.board_map)]
         self.ds = self.get_dataset()
         self.da = self.get_darray()
+        self.cop = self.get_cop_dataset()
 
     def get_dataset(self):
         ds = xr.Dataset({f'board{board.id}': board.da for board in self.boards})
@@ -160,8 +161,25 @@ class Floor:
         -------
         darray : xarray.DataArray
             Readings for the entire floor with x, y, and time dimensions
+
+        Notes
+        -----
+        This might be a better approach for later:
+        http://xarray.pydata.org/en/stable/generated/xarray.combine_by_coords.html
         """
         return xr.concat(self.ds.data_vars.values(), dim='x')
+
+    def get_cop_dataset(self):
+        """Get a dataset containing the x,y coordinates of the center of pressure over time
+
+        Returns
+        -------
+        ds : xarray.Dataset
+            Contains x and y data variables along a time dimension
+        """
+        x_cop = (self.da * self.da.x).sum(dim=('x', 'y')) / self.da.sum(dim=('x', 'y'))
+        y_cop = (self.da * self.da.y).sum(dim=('x', 'y')) / self.da.sum(dim=('x', 'y'))
+        return xr.Dataset({'x': x_cop, 'y': y_cop})
 
 
 # Import the raw pressure data, use timestamps as index, and parse them as Unix milliseconds
@@ -172,3 +190,4 @@ df_raw.index = pd.to_datetime(df_raw.index, unit='ms')
 floor = Floor(df_raw)
 lo, hi = floor.range()
 safe_range = pd.date_range(start=lo, end=hi, freq='40ms')
+da = floor.da

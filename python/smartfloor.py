@@ -1,6 +1,7 @@
 # Using NumPy style docstrings
 import pandas as pd
 import numpy as np
+import xarray as xr
 import matplotlib.pyplot as plt
 from datetime import datetime
 from typing import List, Tuple
@@ -14,11 +15,13 @@ class Board:
     df : pandas.DataFrame
         Raw SmartFloor data, filtered for just this board and with the 'board_id' column removed
     id : int
-        The board ID number, one of {17, 18, 18, 21}
+        The board ID number, one of {17, 18, 19, 21}
     x : int
         Where the left-most tile of this board begins on the floor (each tile represents one unit)
     y : int
         Where the top-most tile of this board begins on the floor (each tile represents one unit)
+    da : xarray.DataArray
+        DataArray with x, y, and time dimensions, such that the time dimension can be indexed by datetime
     Board.sensor_map : numpy.ndarray
         Mapping of sensor ids within the physical layout of a board
     Board.width : int
@@ -57,68 +60,7 @@ class Board:
         #
         self.x = x
         self.y = y
-
-    def lookup(self, dt: datetime) -> pd.Series:
-        """Lookup an entry on the board, and interpolate if it doesn't exist
-
-        Parameters
-        ----------
-        dt : datetime
-            Timestamp to lookup
-
-        Raises
-        ------
-        KeyError
-            When the lookup key is outside of the interpolatable range
-
-        Returns
-        -------
-        data : pandas.Series
-            Either the exact entry at the given timestamp, or an interpolated estimate
-        """
-        try:  # Exact match
-            return self.df.loc[dt]
-        except KeyError:  # Perform interpolation
-            prev_iloc = self.df.index.get_loc(dt, method='ffill')
-            s_prev = self.df.iloc[prev_iloc]
-            s_next = self.df.iloc[prev_iloc + 1]
-            progress = (dt - s_prev.name) / (s_next.name - s_prev.name)
-            s_interpolate = s_prev + progress * (s_next - s_prev)
-            s_interpolate.name = dt
-            return s_interpolate
-
-    def lookup_mapped_arr(self, dt: datetime) -> np.ndarray:
-        """Get an entry from this board with readings mapped to their correct array positions
-
-        Parameters
-        ----------
-        dt : datetime
-            The entry index to look up
-
-        Returns
-        -------
-        arr : numpy.ndarray
-            A 2D array of readings at this index, where each root element is a row on the board
-        """
-        return np.array([[self.lookup(dt)[sensor_id] for sensor_id in row] for row in Board.sensor_map])
-
-    def lookup_mapped_df(self, dt: datetime) -> pd.DataFrame:
-        """Get an entry from this board as a DataFrame containing the appropriate coordinates of each entry
-
-        Parameters
-        ----------
-        dt : datetime
-            The entry index to look up
-
-        Returns
-        -------
-        df : pandas.DataFrame
-            Contains columns for [value, x, y]
-        """
-        arr = self.lookup_mapped_arr(dt=dt)
-        data = [{'x': x + self.x, 'y': y + self.y, 'value': val}
-                for (y, row) in enumerate(arr) for (x, val) in enumerate(row)]
-        return pd.DataFrame(data)
+        self.da = self.get_darray()
 
     def mapped_stream_arr(self) -> np.ndarray:
         """Get pressure reading streams for each sensor in their assigned location
@@ -132,6 +74,24 @@ class Board:
             axis 2: time
         """
         return np.array([[self.df[sensor_id] for sensor_id in row] for row in Board.sensor_map])
+
+    def get_darray(self) -> xr.DataArray:
+        """Build a DataArray from the current DataFrame data
+
+        Returns
+        -------
+        da : xarray.DataArray
+            DataArray with x, y, and time dimensions, such that the time dimension can be indexed by datetime
+        """
+        return xr.DataArray(self.mapped_stream_arr(),
+                            dims=['y', 'x', 'time'],
+                            coords={'time': self.df.index})
+
+    def update_darray(self):
+        """Update the internal DataArray inplace based on current DataFrame data
+
+        """
+        self.da = self.get_darray()
 
     def resample(self, freq: str):
         """Perform linear resampling
@@ -172,6 +132,12 @@ class Floor:
         self.df = df
         self.boards = [Board(df, board_id, x * Board.width, 0)
                        for (x, board_id) in enumerate(Floor.board_map)]
+        self.ds = self.get_dataset()
+        self.da = self.get_darray()
+
+    def get_dataset(self):
+        ds = xr.Dataset({f'board{board.id}': board.da for board in self.boards})
+        return ds.interpolate_na(dim='time', method='linear').dropna(dim='time')
 
     def range(self) -> Tuple[datetime, datetime]:
         """Get the interpolatable range for the floor
@@ -187,61 +153,15 @@ class Floor:
         hi = min(board.df.index[-1] for board in self.boards)
         return lo, hi
 
-    def lookup_mapped_arr(self, dt: datetime) -> np.ndarray:
-        """Get an entry from the floor with readings mapped to their correct array positions
-
-        Parameters
-        ----------
-        dt : datetime
-            The entry index to look up
+    def get_darray(self):
+        """Get a DataArray mapping of the entire floor from the current DataSet
 
         Returns
         -------
-        data : numpy.ndarray
-            A 2D array of readings at this timestamp, where each root element is a row on the floor
+        darray : xarray.DataArray
+            Readings for the entire floor with x, y, and time dimensions
         """
-        arrays = [board.lookup_mapped_arr(dt) for board in self.boards]
-        return np.concatenate(arrays, axis=1)
-
-    def lookup_mapped_df(self, dt: datetime) -> pd.DataFrame:
-        """Get an entry from the floor as a DataFrame containing the appropriate coordinates of each entry
-
-        Parameters
-        ----------
-        dt : datetime
-            The entry index to look up
-
-        Returns
-        -------
-        data : pandas.DataFrame
-            Contains columns for [value, x, y]
-        """
-        arr = self.lookup_mapped_arr(dt=dt)
-        data = [{'x': x, 'y': y, 'value': val}
-                for (y, row) in enumerate(arr) for (x, val) in enumerate(row)]
-        return pd.DataFrame(data)
-
-    def cop(self, dt: datetime) -> Tuple[float, float]:
-        """Get the center of pressure on the floor at a given time
-
-        Parameters
-        ----------
-        dt : timestamp to lookup
-
-        Raises
-        ------
-        KeyError
-            When the lookup key is outside of the interpolatable range
-
-        Returns
-        -------
-        x_cop : float
-        y_cop : float
-        """
-        df_mapped = self.lookup_mapped_df(dt)
-        x_cop = (df_mapped['x'] * df_mapped['value']).sum() / df_mapped['value'].sum()
-        y_cop = (df_mapped['y'] * df_mapped['value']).sum() / df_mapped['value'].sum()
-        return x_cop, y_cop
+        return xr.concat(self.ds.data_vars.values(), dim='x')
 
 
 # Import the raw pressure data, use timestamps as index, and parse them as Unix milliseconds

@@ -7,7 +7,6 @@ const colorCycle = [
     '#1f77b4',  // muted blue
     '#ff7f0e',  // safety orange
     '#2ca02c',  // cooked asparagus green
-    '#d62728',  // brick red
     '#9467bd',  // muted purple
     '#8c564b',  // chestnut brown
     '#e377c2',  // raspberry yogurt pink
@@ -36,37 +35,50 @@ var myCallback = function(json) {
             title: 'Average Speed',
             units: '(cm/s)',
             active: true,
-            trace: {}
+            trace: {},
+            thresholdMean: 94.25, /* cm/s */ 
+            thresholdSD: 23.60
         },
         strideLength : {
             title: 'Stride Length',
             units: '(cm)',
             active: true,
-            trace: {}
+            trace: {},
+            thresholdMean: 111.15, /* cm */
+            thresholdSD: 22.53
+
         },
         supportTime : {
             title: 'Support Time',
             units: '(s)',
             active: true,
-            trace: {}
+            trace: {},
+            thresholdMean: 0.29, /* s */ 
+            thresholdSD: 0.07
         },
         strideLengthCOV : {
             title: 'Stride Length Variance',
             units: '(%)',
             active: true,
-            trace: {}
+            trace: {},
+            thresholdMean: 2.63, /* % */
+            thresholdSD: 1.62
         },
         stepWidthCOV : {
             title: 'Step Width Variance',
             units: '(%)',
             active: true,
-            trace: {}
+            trace: {},
+            thresholdMean: 19.6, /* % */
+            thresholdSD: 16.6
         },
         stepLengthVar : {
             title: 'Step Length Variance',
             units: '(cm)',
             active: true,
-            trace: {}
+            trace: {},
+            thresholdMean: .69, /* cm */
+            thresholdSD: .157 
         } 
     }
     
@@ -131,13 +143,25 @@ var myCallback = function(json) {
             mode: 'markers+lines',
             type: 'scatter',
             yaxis: 'y' + axisSuffix,
-            marker: {size: 12},
+            marker: {
+                size: 12,      
+                color: colorCycle[i]
+            },
             line: {
                 color: colorCycle[i]
             }
         }
+        // threshold
+        const lowerBound = properties[property]['thresholdMean']; - 2*properties[property]['thresholdSD'];
+        const upperBound = properties[property]['thresholdMean']; + 2*properties[property]['thresholdSD'];
+        for(const index in propertyCols[property]) {
+            if (propertyCols[property][index] >=  upperBound || propertyCols[property][index] <=  lowerBound) {
+                properties[property]['trace']['marker']['color'] = '#FF0000';
+            }
+        }
     });
-    Plotly.newPlot('plot', plotlyGetInitData(properties), plotlyGetInitLayout(properties), {responsive: true});
+    
+    Plotly.newPlot('plot', plotlyGetInitData(properties), plotlyGetInitLayout(properties), {responsive: true, displayModeBar: false});
 }
 
 //ThreeJS Renderer
@@ -233,15 +257,71 @@ function plotlyGetInitLayout(properties) {
         xaxis: {
             linecolor: 'black',
             mirror: 'all',
-        }
+        },
+        shapes: getActivePlotShapes(properties),
+        dragmode: 'pan'
     }
-    Object.values(properties).forEach(function(propertyVal, i) {
+    Object.keys(properties).forEach(function(property, i) {
         const axisSuffix = (i === 0 ? '' : i + 1);
+        const propertyMin = propertyCols[property].reduce(function(a, b) {return Math.min(a, b);});
+        const propertyMax = propertyCols[property].reduce(function(a, b) {return Math.max(a, b);});
+        const rangeBuffer = 2*properties[property].thresholdSD;
         layout['yaxis' + axisSuffix] = {
-            title: { text: propertyVal.title + ' ' + propertyVal.units }
+            title: { text: properties[property].title + ' ' + properties[property].units },
+            range: [propertyMin - rangeBuffer, propertyMax + rangeBuffer],
+        }
+    });  
+    return layout;
+}
+
+function getActivePlotShapes(properties) {
+    const activeShapes = [];
+    Object.keys(properties).forEach(function(property, i) {
+        if(properties[property].active) {
+            //add upper bound alert shape
+            const upperBound = properties[property]['thresholdMean'] + 2*properties[property]['thresholdSD'];
+            const upperShape = {
+                type : 'rect',
+                xref : 'paper',
+                // y-reference is assigned to the y values
+                yref : properties[property]['trace']['yaxis'],
+                x0 : 0,
+                y0 : upperBound,
+                x1 : 1,
+                y1 : 1000, //TODO
+                fillcolor : '#FF0000',
+                opacity : 0.2,
+                line : {
+                    width: 0
+                },
+                width : 0
+            };
+
+            //add lower bound alert shape
+            const lowerBound = properties[property]['thresholdMean'] - 2*properties[property]['thresholdSD'];
+            const lowerShape = {
+                type : 'rect',
+                xref : 'paper',
+                // y-reference is assigned to the y values
+                yref : properties[property]['trace']['yaxis'],
+                x0 : 0,
+                y0 : (-1)*Number.MAX_SAFE_INTEGER,
+                x1 : 1,
+                y1 : lowerBound,
+                fillcolor : '#FF0000',
+                opacity : 0.2,
+                line : {
+                    width: 0
+                },
+                width : 0
+                
+            };
+
+            activeShapes.push(upperShape);
+            activeShapes.push(lowerShape);
         }
     });
-    return layout;
+    return activeShapes;
 }
 
 function plotlyGetInitData(properties) {
@@ -262,10 +342,11 @@ function plotlyToggleSubplot(properties, property) {
 }
 
 function plotlyGetRelayout(properties) {
-    const numActive = Object.values(properties).filter(p => p.active).length
+    const numActive = Object.values(properties).filter(p => p.active).length;
     const layout = {
         'height': gaitPlotConfig.marginTop + gaitPlotConfig.subplotHeight * numActive,
-        'grid.yaxes': Object.values(properties).filter(p => p.active).map(p => p.trace.yaxis)
+        'grid.yaxes': Object.values(properties).filter(p => p.active).map(p => p.trace.yaxis),
+        'shapes': getActivePlotShapes(properties)
     };
     return layout;
     

@@ -120,6 +120,32 @@ class Board:
                 for (y, row) in enumerate(arr) for (x, val) in enumerate(row)]
         return pd.DataFrame(data)
 
+    def mapped_stream_arr(self) -> np.ndarray:
+        """Get pressure reading streams for each sensor in their assigned location
+
+        Returns
+        -------
+        data : numpy.ndarray
+            A 3D matrix of pressure streams. The axes are as follows:
+            axis 0: rows of the board
+            axis 1: columns of the board
+            axis 2: time
+        """
+        return np.array([[self.df[sensor_id] for sensor_id in row] for row in Board.sensor_map])
+
+    def resample(self, freq: str):
+        """Perform linear resampling
+
+        Parameters
+        ----------
+        freq
+
+        Returns
+        -------
+
+        """
+        self.df.resample(freq).mean().ffill()
+
 
 class Floor:
     """A strip of SmartFloor boards
@@ -218,13 +244,11 @@ class Floor:
         return x_cop, y_cop
 
 
-columns = ['board_id', 'time', *range(48)]  # column names
-
 # Import the raw pressure data, use timestamps as index, and parse them as Unix milliseconds
+columns = ['board_id', 'time', *range(48)]  # column names
 df_raw = pd.read_csv('1_131.2lbs.csv', engine='python', names=columns, index_col=1)
 df_raw.index = pd.to_datetime(df_raw.index, unit='ms')
-b17 = Board(df_raw, board_id=17, x=0, y=0)
-dt = b17.df.index[0]
-dt2 = b17.df.index[5]
-dt_in = pd.Timestamp('2018-11-11 01:40:46')
+
 floor = Floor(df_raw)
+lo, hi = floor.range()
+safe_range = pd.date_range(start=lo, end=hi, freq='40ms')

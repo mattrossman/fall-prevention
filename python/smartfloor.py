@@ -157,8 +157,8 @@ class Floor:
         high : datetime
             The last time at which all boards are recording
         """
-        lo = min(board.df.index[0] for board in self.boards)
-        hi = max(board.df.index[-1] for board in self.boards)
+        lo = max(board.df.index[0] for board in self.boards)
+        hi = min(board.df.index[-1] for board in self.boards)
         return lo, hi
 
     def lookup_mapped_arr(self, dt: datetime) -> np.ndarray:

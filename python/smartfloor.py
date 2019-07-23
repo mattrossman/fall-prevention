@@ -138,6 +138,20 @@ class Floor:
         self.boards = [Board(df, board_id, x * Board.width, 0)
                        for (x, board_id) in enumerate(board_ids)]
 
+    def range(self) -> Tuple[datetime, datetime]:
+        """Get the interpolatable range for the floor
+
+        Returns
+        -------
+        low : datetime
+            The first time at which all boards are recording
+        high : datetime
+            The last time at which all boards are recording
+        """
+        lo = min(board.df.index[0] for board in self.boards)
+        hi = max(board.df.index[-1] for board in self.boards)
+        return lo, hi
+
     def lookup_mapped_arr(self, dt: datetime) -> np.ndarray:
         """Get an entry from the floor with readings mapped to their correct array positions
 

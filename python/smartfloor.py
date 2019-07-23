@@ -24,7 +24,7 @@ class Board:
     Board.width : int
         Number of tiles a board is wide
     Board.height : int
-        Numbed of tiles a board is high
+        Number of tiles a board is high
     """
     sensor_map = [  # arrangement of sensor ids on each board
         [18, 19, 6, 7],
@@ -172,24 +172,27 @@ class Floor:
                 for (y, row) in enumerate(arr) for (x, val) in enumerate(row)]
         return pd.DataFrame(data)
 
-    def cop(self, ix: datetime) -> Tuple[float, float]:
-        """
+    def cop(self, dt: datetime) -> Tuple[float, float]:
+        """Get the center of pressure on the floor at a given time
 
         Parameters
         ----------
-        ix : timestamp to lookup
+        dt : timestamp to lookup
+
+        Raises
+        ------
+        KeyError
+            When the lookup key is outside of the interpolatable range
 
         Returns
         -------
-        x : float
-        y : float
-
-        Notes
-        -----
-        x_cm = sum(x * m) / sum(m)
-        So I will want a big list of each (x, y, m) entry for the whole
+        x_cop : float
+        y_cop : float
         """
-
+        df_mapped = self.lookup_mapped_df(dt)
+        x_cop = (df_mapped['x'] * df_mapped['value']).sum() / df_mapped['value'].sum()
+        y_cop = (df_mapped['y'] * df_mapped['value']).sum() / df_mapped['value'].sum()
+        return x_cop, y_cop
 
 
 columns = ['board_id', 'time', *range(48)]  # column names

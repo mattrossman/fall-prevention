@@ -152,8 +152,8 @@ var myCallback = function(json) {
             }
         }
         // threshold
-        const lowerBound = properties[property]['thresholdMean']; - 2*properties[property]['thresholdSD'];
-        const upperBound = properties[property]['thresholdMean']; + 2*properties[property]['thresholdSD'];
+        const lowerBound = properties[property]['thresholdMean'] - 2*properties[property]['thresholdSD'];
+        const upperBound = properties[property]['thresholdMean'] + 2*properties[property]['thresholdSD'];
         for(const index in propertyCols[property]) {
             if (propertyCols[property][index] >=  upperBound || propertyCols[property][index] <=  lowerBound) {
                 properties[property]['trace']['marker']['color'] = '#FF0000';

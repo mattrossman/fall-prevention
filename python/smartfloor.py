@@ -124,19 +124,28 @@ class Board:
 class Floor:
     """A strip of SmartFloor boards
 
+    Attributes
+    ----------
+    df : pandas.DataFrame
+        Raw SmartFloor recording
+    boards : List[Board]
+        Board objects that make up the floor, in left to right order
+    Floor.board_map : List[int]
+        List of board IDs in the order they appear left to right on the floor
     """
-    def __init__(self, df: pd.DataFrame, board_ids: List[int]):
+
+    board_map = [19, 17, 21, 18]
+
+    def __init__(self, df: pd.DataFrame):
         """
         Parameters
         ----------
         df : pandas.DataFrame
             Raw SmartFloor recording
-        board_ids : List[int]
-            List of board IDs in the order they appear left to right on the floor
         """
         self.df = df
         self.boards = [Board(df, board_id, x * Board.width, 0)
-                       for (x, board_id) in enumerate(board_ids)]
+                       for (x, board_id) in enumerate(Floor.board_map)]
 
     def range(self) -> Tuple[datetime, datetime]:
         """Get the interpolatable range for the floor
@@ -218,4 +227,4 @@ b17 = Board(df_raw, board_id=17, x=0, y=0)
 dt = b17.df.index[0]
 dt2 = b17.df.index[5]
 dt_in = pd.Timestamp('2018-11-11 01:40:46')
-floor = Floor(df_raw, [19, 17, 21, 18])
+floor = Floor(df_raw)

@@ -2,7 +2,6 @@
 import pandas as pd
 import numpy as np
 import xarray as xr
-import matplotlib.pyplot as plt
 from datetime import datetime
 from typing import List, Tuple
 
@@ -136,6 +135,13 @@ class Floor:
         self.da = self.get_darray()
         self.cop = self.get_cop_dataset()
 
+    @staticmethod
+    def from_csv(path):
+        columns = ['board_id', 'time', *range(48)]  # column names
+        df_raw = pd.read_csv(path, engine='python', names=columns, index_col=1)
+        df_raw.index = pd.to_datetime(df_raw.index, unit='ms')
+        return Floor(df_raw)
+
     def get_dataset(self):
         ds = xr.Dataset({f'board{board.id}': board.da for board in self.boards})
         return ds.interpolate_na(dim='time', method='linear').dropna(dim='time')
@@ -180,14 +186,3 @@ class Floor:
         x_cop = (self.da * self.da.x).sum(dim=('x', 'y')) / self.da.sum(dim=('x', 'y'))
         y_cop = (self.da * self.da.y).sum(dim=('x', 'y')) / self.da.sum(dim=('x', 'y'))
         return xr.Dataset({'x': x_cop, 'y': y_cop})
-
-
-# Import the raw pressure data, use timestamps as index, and parse them as Unix milliseconds
-columns = ['board_id', 'time', *range(48)]  # column names
-df_raw = pd.read_csv('1_131.2lbs.csv', engine='python', names=columns, index_col=1)
-df_raw.index = pd.to_datetime(df_raw.index, unit='ms')
-
-floor = Floor(df_raw)
-lo, hi = floor.range()
-safe_range = pd.date_range(start=lo, end=hi, freq='40ms')
-da = floor.da

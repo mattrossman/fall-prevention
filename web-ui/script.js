@@ -151,7 +151,7 @@ var myCallback = function(json) {
                 color: colorCycle[i]
             }
         }
-        /*threshold
+        // threshold
         const lowerBound = properties[property]['thresholdMean']; - 2*properties[property]['thresholdSD'];
         const upperBound = properties[property]['thresholdMean']; + 2*properties[property]['thresholdSD'];
         for(const index in propertyCols[property]) {
@@ -159,7 +159,6 @@ var myCallback = function(json) {
                 properties[property]['trace']['marker']['color'] = '#FF0000';
             }
         }
-        */
     });
     
     Plotly.newPlot('plot', plotlyGetInitData(properties), plotlyGetInitLayout(properties), {responsive: true, displayModeBar: false});
@@ -271,8 +270,7 @@ function plotlyGetInitLayout(properties) {
             title: { text: properties[property].title + ' ' + properties[property].units },
             range: [propertyMin - rangeBuffer, propertyMax + rangeBuffer],
         }
-    });
-    
+    });  
     return layout;
 }
 
@@ -344,8 +342,7 @@ function plotlyToggleSubplot(properties, property) {
 }
 
 function plotlyGetRelayout(properties) {
-    const numActive = Object.values(properties).filter(p => p.active).length
-    const activeShapes = 3;
+    const numActive = Object.values(properties).filter(p => p.active).length;
     const layout = {
         'height': gaitPlotConfig.marginTop + gaitPlotConfig.subplotHeight * numActive,
         'grid.yaxes': Object.values(properties).filter(p => p.active).map(p => p.trace.yaxis),

@@ -259,59 +259,71 @@ function plotlyGetInitLayout(properties) {
             linecolor: 'black',
             mirror: 'all',
         },
-        shapes: [],
+        shapes: getActivePlotShapes(properties),
         dragmode: 'pan'
     }
-    Object.values(properties).forEach(function(propertyVal, i) {
+    Object.keys(properties).forEach(function(property, i) {
         const axisSuffix = (i === 0 ? '' : i + 1);
+        const propertyMin = propertyCols[property].reduce(function(a, b) {return Math.min(a, b);});
+        const propertyMax = propertyCols[property].reduce(function(a, b) {return Math.max(a, b);});
+        const rangeBuffer = 2*properties[property].thresholdSD;
         layout['yaxis' + axisSuffix] = {
-            title: { text: propertyVal.title + ' ' + propertyVal.units }
+            title: { text: properties[property].title + ' ' + properties[property].units },
+            range: [propertyMin - rangeBuffer, propertyMax + rangeBuffer],
         }
     });
-    Object.keys(properties).forEach(function(property, i) {
-
-        //add upper bound alert shape
-        const upperBound = properties[property]['thresholdMean'] + 2*properties[property]['thresholdSD'];
-        const upperShape = {
-            type : 'rect',
-            xref : 'paper',
-            // y-reference is assigned to the y values
-            yref : properties[property]['trace']['yaxis'],
-            x0 : 0,
-            y0 : upperBound,
-            x1 : 1,
-            y1 : upperBound + 1, //TODO
-            fillcolor : '#FF0000',
-            opacity : 0.2,
-            line : {
-                width: 0
-            },
-            width : 0
-        };
-
-        //add lower bound alert shape
-        const lowerBound = properties[property]['thresholdMean'] - 2*properties[property]['thresholdSD'];
-        const lowerShape = {
-            type : 'rect',
-            xref : 'paper',
-            // y-reference is assigned to the y values
-            yref : properties[property]['trace']['yaxis'],
-            x0 : 0,
-            y0 : lowerBound - 1, //TODO
-            x1 : 1,
-            y1 : lowerBound,
-            fillcolor : '#FFFF00',
-            opacity : 0.2,
-            line : {
-                width: 0
-            },
-            width : 0
-        };
-
-        layout.shapes.push(upperShape);
-        layout.shapes.push(lowerShape);
-    });
+    
     return layout;
+}
+
+function getActivePlotShapes(properties) {
+    const activeShapes = [];
+    Object.keys(properties).forEach(function(property, i) {
+        if(properties[property].active) {
+            //add upper bound alert shape
+            const upperBound = properties[property]['thresholdMean'] + 2*properties[property]['thresholdSD'];
+            const upperShape = {
+                type : 'rect',
+                xref : 'paper',
+                // y-reference is assigned to the y values
+                yref : properties[property]['trace']['yaxis'],
+                x0 : 0,
+                y0 : upperBound,
+                x1 : 1,
+                y1 : 1000, //TODO
+                fillcolor : '#FF0000',
+                opacity : 0.2,
+                line : {
+                    width: 0
+                },
+                width : 0
+            };
+
+            //add lower bound alert shape
+            const lowerBound = properties[property]['thresholdMean'] - 2*properties[property]['thresholdSD'];
+            const lowerShape = {
+                type : 'rect',
+                xref : 'paper',
+                // y-reference is assigned to the y values
+                yref : properties[property]['trace']['yaxis'],
+                x0 : 0,
+                y0 : (-1)*Number.MAX_SAFE_INTEGER,
+                x1 : 1,
+                y1 : lowerBound,
+                fillcolor : '#FF0000',
+                opacity : 0.2,
+                line : {
+                    width: 0
+                },
+                width : 0
+                
+            };
+
+            activeShapes.push(upperShape);
+            activeShapes.push(lowerShape);
+        }
+    });
+    return activeShapes;
 }
 
 function plotlyGetInitData(properties) {
@@ -333,9 +345,11 @@ function plotlyToggleSubplot(properties, property) {
 
 function plotlyGetRelayout(properties) {
     const numActive = Object.values(properties).filter(p => p.active).length
+    const activeShapes = 3;
     const layout = {
         'height': gaitPlotConfig.marginTop + gaitPlotConfig.subplotHeight * numActive,
-        'grid.yaxes': Object.values(properties).filter(p => p.active).map(p => p.trace.yaxis)
+        'grid.yaxes': Object.values(properties).filter(p => p.active).map(p => p.trace.yaxis),
+        'shapes': getActivePlotShapes(properties)
     };
     return layout;
     

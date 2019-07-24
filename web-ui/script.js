@@ -162,6 +162,15 @@ var myCallback = function(json) {
     });
     
     Plotly.newPlot('plot', plotlyGetInitData(properties), plotlyGetInitLayout(properties), {responsive: true, displayModeBar: false});
+
+    //clickable
+    Object.keys(properties).forEach(function(property, i) {
+        const myPlot = document.getElementById('plot'),
+            data = properties[property]['trace'];
+        myPlot.on('plotly_click', function(){
+        alert('clicked!');
+        });
+    });
 }
 
 //ThreeJS Renderer

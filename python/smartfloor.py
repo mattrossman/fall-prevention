@@ -139,7 +139,7 @@ class Floor:
                        for (x, board_id) in enumerate(Floor.board_map)]
         self.da = self._get_darray()
         self.noise = self.da.isel(time=0)
-        self.cop = self._get_cop_dataset(self.da - self.noise)
+        self.cop = self._get_cop_dataset(self.denoise())
 
     @staticmethod
     def from_csv(path):
@@ -191,3 +191,28 @@ class Floor:
         y_cop = (da * da.y).sum(dim=('x', 'y')) / da.sum(dim=('x', 'y'))
         magnitude = da.sum(dim=('x', 'y'))
         return xr.Dataset({'x': x_cop, 'y': y_cop, 'magnitude': magnitude})
+
+    def _masked_by_max(self, da: xr.DataArray, dist: int) -> xr.DataArray:
+        """Mask away values that are a certain distance away from the point of maximum pressure
+
+        Parameters
+        ----------
+        da : xarray.DataArray
+            Full mapping of the floor data
+        dist : int
+            Maximum permitted distance from the point of highest pressure
+
+        Returns
+        -------
+        mask : xarray.DataArray
+            Like the input, but values outside the desired square are set to zero
+        """
+        stacked = da.stack(tile=('x', 'y'))
+        coords_max = stacked.tile.isel(tile=stacked.argmax('tile'))
+        x_max, y_max = zip(*coords_max.data)
+        ds = xr.Dataset({'x': (['time'], list(x_max)), 'y': (['time'], list(y_max))}, coords={'time': stacked.time})
+        masked = (da.where((abs(da.x - ds.x) <= dist)).where(abs(da.y - ds.y) <= dist))
+        return masked
+
+    def denoise(self):
+        return self._masked_by_max(self.da - self.noise, 2)

@@ -5,4 +5,7 @@
 *.wav
 *.avi
 *.csv
-*.xef
+**.xef
+node_modules
+package-lock.json
+__pycache__

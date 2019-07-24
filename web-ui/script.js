@@ -97,6 +97,7 @@ var myCallback = function(json) {
         // Zero out the time data, just compare by the date information
         return new Date(s.time).setHours(0, 0, 0, 0);
     })
+    console.log(binsDaily);
     function propertyAverage(segments, param) {
         sum = segments.reduce(function(acc, segment) { return acc + segment[param]; }, 0);
         return sum / segments.length;
@@ -109,7 +110,6 @@ var myCallback = function(json) {
             dailyAverages[day][property] = propertyAverage(binsDaily[day], property)
         });
     }
-    console.log(dailyAverages);
 
     //create 1D arrays for each property to later be used as y values
     propertyCols = {};
@@ -138,6 +138,7 @@ var myCallback = function(json) {
         // Create traces for each property
         const axisSuffix = (i === 0 ? '' : i + 1);
         properties[property]['trace'] = {
+            name: property,
             x: Object.keys(dailyAverages).map(string => new Date(parseInt(string))),
             y: propertyCols[property],
             mode: 'markers+lines',
@@ -149,7 +150,8 @@ var myCallback = function(json) {
             },
             line: {
                 color: colorCycle[i]
-            }
+            },
+            hoverinfo: 'y+x'
         }
         // threshold
         const lowerBound = properties[property]['thresholdMean'] - 2*properties[property]['thresholdSD'];
@@ -161,15 +163,20 @@ var myCallback = function(json) {
         }
     });
     
-    Plotly.newPlot('plot', plotlyGetInitData(properties), plotlyGetInitLayout(properties), {responsive: true, displayModeBar: false});
+    Plotly.newPlot('plot', plotlyGetInitData(properties), plotlyGetInitLayout(properties), plotlyGetInitConfig());
 
     //clickable
-    Object.keys(properties).forEach(function(property, i) {
-        const myPlot = document.getElementById('plot'),
-            data = properties[property]['trace'];
-        myPlot.on('plotly_click', function(){
-        alert('clicked!');
-        });
+    const myPlot = document.getElementById('plot');           
+    myPlot.on('plotly_click', function(data){
+        const x = data.points[0].x;
+        const y = data.points[0].y;
+        const property = data.points[0].curveNumber;
+        const date = x.split("-").map(string => parseInt(string));
+        const unixTime = Math.round(new Date(date[0], date[1] - 1, date[2]));
+        
+        //access walking segments from that day in binsDaily
+        segments = binsDaily[unixTime];
+        console.log(segments);
     });
 }
 
@@ -333,6 +340,14 @@ function getActivePlotShapes(properties) {
 
 function plotlyGetInitData(properties) {
     return Object.values(properties).map(p => p.trace);
+}
+
+function plotlyGetInitConfig() {
+    return {
+        responsive: true,
+        displayModeBar: false,
+        doubleClick: 'reset'
+    }
 }
 
 function plotlyToggleSubplot(properties, property) {

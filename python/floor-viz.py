@@ -5,7 +5,7 @@ from smartfloor import Floor
 import sys
 
 
-floor = Floor.from_csv('1_131.2lbs.csv')
+floor = Floor.from_csv('data/1_131.2lbs.csv')
 lo, hi = floor.range()
 safe_range = pd.date_range(start=lo, end=hi, freq='40ms')
 

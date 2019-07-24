@@ -59,7 +59,11 @@ class Board:
         #
         self.x = x
         self.y = y
+        self.denoise()
         self.da = self.get_darray()
+
+    def denoise(self):
+        self.df = self.df - self.df.iloc[0]
 
     def mapped_stream_arr(self) -> np.ndarray:
         """Get pressure reading streams for each sensor in their assigned location
@@ -185,4 +189,5 @@ class Floor:
         """
         x_cop = (self.da * self.da.x).sum(dim=('x', 'y')) / self.da.sum(dim=('x', 'y'))
         y_cop = (self.da * self.da.y).sum(dim=('x', 'y')) / self.da.sum(dim=('x', 'y'))
-        return xr.Dataset({'x': x_cop, 'y': y_cop})
+        magnitude = self.da.sum(dim=('x', 'y'))
+        return xr.Dataset({'x': x_cop, 'y': y_cop, 'magnitude': magnitude})

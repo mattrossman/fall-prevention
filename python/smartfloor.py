@@ -171,7 +171,7 @@ class Floor:
             Readings for the entire floor with x, y, and time dimensions
         """
         da = xr.DataArray(xr.concat([board.da for board in self.boards], dim='x'))
-        return da.interpolate_na(dim='time', method='spline').dropna(dim='time')
+        return _nonnegative_darray(da.interpolate_na(dim='time', method='spline').dropna(dim='time'))
 
     @staticmethod
     def _get_cop_dataset(da: xr.DataArray) -> xr.Dataset:
@@ -215,4 +215,9 @@ class Floor:
         return masked
 
     def denoise(self):
-        return self._masked_by_max(self.da - self.noise, 2)
+        init_pass = _nonnegative_darray(self.da - self.noise)
+        return self._masked_by_max(init_pass, 2)
+
+
+def _nonnegative_darray(da: xr.DataArray):
+    return da.where(da > 0).fillna(0)

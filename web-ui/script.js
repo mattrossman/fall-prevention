@@ -234,8 +234,6 @@ function threejs() {
       }
     requestAnimationFrame(render);
 
-    //document.getElementById("c").appendChild( renderer.domElement );
-
 }
 
 function plotlyGetInitLayout(properties) {

@@ -59,11 +59,7 @@ class Board:
         #
         self.x = x
         self.y = y
-        self.denoise()
         self.da = self.get_darray()
-
-    def denoise(self):
-        self.df = self.df - self.df.iloc[0]
 
     def mapped_stream_arr(self) -> np.ndarray:
         """Get pressure reading streams for each sensor in their assigned location
@@ -119,6 +115,12 @@ class Floor:
         Raw SmartFloor recording
     boards : List[Board]
         Board objects that make up the floor, in left to right order
+    da : xarray.DataArray
+        Interpolated mapping of all sensor readings with x, y, and time dimensions
+    noise : xarray.DataArray
+        Base pressure readings on the floor over the x, y plane
+    cop : xarray.Dataset
+        Center of pressure over time containing x, y, and magnitude variables
     Floor.board_map : List[int]
         List of board IDs in the order they appear left to right on the floor
     """
@@ -135,9 +137,9 @@ class Floor:
         self.df = df
         self.boards = [Board(df, board_id, x * Board.width, 0)
                        for (x, board_id) in enumerate(Floor.board_map)]
-        self.ds = self.get_dataset()
-        self.da = self.get_darray()
-        self.cop = self.get_cop_dataset()
+        self.da = self._get_darray()
+        self.noise = self.da.isel(time=0)
+        self.cop = self._get_cop_dataset(self.da - self.noise)
 
     @staticmethod
     def from_csv(path):
@@ -145,10 +147,6 @@ class Floor:
         df_raw = pd.read_csv(path, engine='python', names=columns, index_col=1)
         df_raw.index = pd.to_datetime(df_raw.index, unit='ms')
         return Floor(df_raw)
-
-    def get_dataset(self):
-        ds = xr.Dataset({f'board{board.id}': board.da for board in self.boards})
-        return ds.interpolate_na(dim='time', method='linear').dropna(dim='time')
 
     def range(self) -> Tuple[datetime, datetime]:
         """Get the interpolatable range for the floor
@@ -164,30 +162,32 @@ class Floor:
         hi = min(board.df.index[-1] for board in self.boards)
         return lo, hi
 
-    def get_darray(self):
-        """Get a DataArray mapping of the entire floor from the current DataSet
+    def _get_darray(self) -> xr.DataArray:
+        """Get a DataArray mapping of all the boards
 
         Returns
         -------
         darray : xarray.DataArray
             Readings for the entire floor with x, y, and time dimensions
-
-        Notes
-        -----
-        This might be a better approach for later:
-        http://xarray.pydata.org/en/stable/generated/xarray.combine_by_coords.html
         """
-        return xr.concat(self.ds.data_vars.values(), dim='x')
+        da = xr.DataArray(xr.concat([board.da for board in self.boards], dim='x'))
+        return da.interpolate_na(dim='time', method='spline').dropna(dim='time')
 
-    def get_cop_dataset(self):
+    @staticmethod
+    def _get_cop_dataset(da: xr.DataArray) -> xr.Dataset:
         """Get a dataset containing the x,y coordinates of the center of pressure over time
+
+        Parameters
+        ----------
+        da : xarray.DataArray
+            Full mapping of the floor data
 
         Returns
         -------
         ds : xarray.Dataset
-            Contains x and y data variables along a time dimension
+            Contains x, y, and magnitude data variables along a time dimension
         """
-        x_cop = (self.da * self.da.x).sum(dim=('x', 'y')) / self.da.sum(dim=('x', 'y'))
-        y_cop = (self.da * self.da.y).sum(dim=('x', 'y')) / self.da.sum(dim=('x', 'y'))
-        magnitude = self.da.sum(dim=('x', 'y'))
+        x_cop = (da * da.x).sum(dim=('x', 'y')) / da.sum(dim=('x', 'y'))
+        y_cop = (da * da.y).sum(dim=('x', 'y')) / da.sum(dim=('x', 'y'))
+        magnitude = da.sum(dim=('x', 'y'))
         return xr.Dataset({'x': x_cop, 'y': y_cop, 'magnitude': magnitude})

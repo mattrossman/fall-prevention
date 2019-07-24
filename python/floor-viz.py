@@ -19,17 +19,17 @@ cop = plt.plot(0, 0, 'ro')
 def update_quad_data(args):
     i, dt = args
     plt.title(f'Time: {dt.strftime("%H:%M:%S")} | Frame: {i}')
-    quad.set_array(floor.da.interp(time=dt).stack(z=('y', 'x')))
+    quad.set_array((floor.da - floor.noise).interp(time=dt).stack(z=('y', 'x')))
     x, y, mag = floor.cop.interp(time=dt).to_array()
     cop[0].set_data(x, y, )
     cop[0].set_markersize(20 * mag / floor.cop.magnitude.max(dim='time'))
 
 
-ani = animation.FuncAnimation(fig, update_quad_data, frames=enumerate(safe_range),
+ani = animation.FuncAnimation(fig, update_quad_data, frames=enumerate(safe_range[100:]),
                               interval=1000, save_count=sys.maxsize)
 
 
-def write_animaton():
+def write_animaton(path):
     Writer = animation.writers['ffmpeg']
     writer = Writer(fps=25, metadata=dict(artist='Me'), bitrate=1800)
-    ani.save('cop.mp4', writer=writer)
+    ani.save(path, writer=writer)

@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 import xarray as xr
+import xarray.ufuncs as xu
 from datetime import datetime
 from typing import List, Tuple
 
@@ -139,14 +140,10 @@ class Floor:
                        for (x, board_id) in enumerate(Floor.board_map)]
         self.da = self._get_darray()
         self.noise = self.da.isel(time=0)
-        self.cop = self._get_cop_dataset(self.denoise())
 
     @staticmethod
     def from_csv(path):
-        columns = ['board_id', 'time', *range(48)]  # column names
-        df_raw = pd.read_csv(path, engine='python', names=columns, index_col=1)
-        df_raw.index = pd.to_datetime(df_raw.index, unit='ms')
-        return Floor(df_raw)
+        return Floor(_df_from_csv(path))
 
     def range(self) -> Tuple[datetime, datetime]:
         """Get the interpolatable range for the floor
@@ -218,6 +215,40 @@ class Floor:
         init_pass = _nonnegative_darray(self.da - self.noise)
         return self._masked_by_max(init_pass, 2)
 
+    def cop(self):
+        return self._get_cop_dataset(self.denoise())
+
+    def cop_vel(self):
+        cop = self.cop()
+        return (cop - cop.shift(time=1))*25
+
+    def cop_speed(self):
+        vel = self.cop_vel()
+        return xu.sqrt(xu.square(vel.x) + xu.square(vel.y))
+
+
+def _df_from_csv(path) -> pd.DataFrame:
+    columns = ['board_id', 'time', *range(48)]  # column names
+    df_raw = pd.read_csv(path, engine='python', names=columns, index_col=1)
+    df_raw.index = pd.to_datetime(df_raw.index, unit='ms')
+    return df_raw
+
 
 def _nonnegative_darray(da: xr.DataArray):
     return da.where(da > 0).fillna(0)
+
+
+class Segment(Floor):
+    """A segment is a floor recording for a selected period of time at a set frequency
+
+    Note that a Floor can contain data at no set frequency
+
+    """
+    def __init__(self, df, start, end, freq='40ms'):
+        super().__init__(df)
+        self.date_range = pd.date_range(start=start, end=end, freq=freq)
+        self.da = self.da.interp(time=self.date_range)
+
+    @staticmethod
+    def from_csv(path, *args, **kwargs):
+        return Segment(_df_from_csv(path), *args, **kwargs)

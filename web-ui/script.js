@@ -173,10 +173,16 @@ var myCallback = function(json) {
         const property = data.points[0].curveNumber;
         const date = x.split("-").map(string => parseInt(string));
         const unixTime = Math.round(new Date(date[0], date[1] - 1, date[2]));
-        
+        alert("bitch!");
         //access walking segments from that day in binsDaily
         segments = binsDaily[unixTime];
-        console.log(segments);
+        const slider = $('#slider').slideReveal({
+            push: false,
+            overlay: true,
+            position: "right",
+            width: 350
+        });
+        slider.slideReveal('show');
     });
 }
 

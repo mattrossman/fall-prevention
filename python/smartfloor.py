@@ -228,7 +228,8 @@ class Floor:
 
     def cop_vel(self):
         cop = self.cop()
-        return (cop - cop.shift(time=1))*25
+        time_diff = (cop.time - cop.time.shift(time=1)) / np.timedelta64(1, 's')  # convert to seconds
+        return (cop - cop.shift(time=1)) / time_diff
 
     def cop_speed(self):
         vel = self.cop_vel()

@@ -22,6 +22,8 @@ class Board:
         Where the top-most tile of this board begins on the floor (each tile represents one unit)
     da : xarray.DataArray
         DataArray with x, y, and time dimensions, such that the time dimension can be indexed by datetime
+    hz : xarray.DataArray
+        The sample rate (in Hz) of the board over time
     Board.sensor_map : numpy.ndarray
         Mapping of sensor ids within the physical layout of a board
     Board.width : int
@@ -61,6 +63,7 @@ class Board:
         self.x = x
         self.y = y
         self.da = self.get_darray()
+        self.hz = self._get_hz(self.da)
 
     def mapped_stream_arr(self) -> np.ndarray:
         """Get pressure reading streams for each sensor in their assigned location
@@ -105,6 +108,11 @@ class Board:
 
         """
         self.df.resample(freq).mean().ffill()
+
+    def _get_hz(self, da):
+        ns_diff = (da.time - da.time.shift(time=1))
+        board_hz = np.timedelta64(1, 's') / ns_diff
+        return board_hz
 
 
 class Floor:

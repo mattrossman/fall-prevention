@@ -177,7 +177,7 @@ var myCallback = function(json) {
             push: false,
             overlay: true,
             position: "right",
-            width: 350
+            width: 500
         });
         slider.slideReveal('show');
     });
@@ -394,12 +394,45 @@ function loadSliderContent(binsDaily, x, y, property) {
     const slider = document.getElementById('slider');
     const content = document.createElement('div');
     content.setAttribute('id', 'slideContent');
+
+    //header
     const header = document.createElement('header');
     const options = {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'};
     const headerText = document.createElement('a');
     headerText.innerHTML = dateObj.toLocaleDateString("en-US", options);
+
+    //timeline
+    const tl = document.createElement('div');
+    tl.setAttribute('class', 'cntl');
+    const tlBar = document.createElement('span');
+    tlBar.setAttribute('class', 'cntl-bar cntl-center');
+    const tlBarFill = document.createElement('span');
+    tlBarFill.setAttribute('class', 'cntl-bar-fill');
+    tlBar.appendChild(tlBarFill);
+    tl.appendChild(tlBar);
+    const tlStates = document.createElement('div');
+    tlStates.setAttribute('class', 'cntl-states');
+    //walking segments
+    for (var i = 0; i < segments.length; i++) {
+        const tlSubState = document.createElement('div');
+        tlSubState.setAttribute('class', 'cntl-state');
+        const tlContent = document.createElement('div');
+        tlSubState.setAttribute('class', 'ccntl-content');
+        const contentHeader = document.createElement('h4');
+        const segmentTime = new Date(parseInt(segments[i]['time']));
+        const options = {hour: 'numeric', minute: 'numeric', second: 'numeric'};
+        contentHeader.innerHTML = segmentTime.toLocaleDateString("en-US", options);
+        tlContent.appendChild(contentHeader);
+        tlSubState.appendChild(tlContent);
+        tlStates.appendChild(tlSubState);
+    }
+    tl.appendChild(tlStates);
+
+
+
     header.appendChild(headerText);
     content.appendChild(header);
+    content.appendChild(tl);
     slider.appendChild(content);
 }
 

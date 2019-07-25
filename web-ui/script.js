@@ -97,7 +97,7 @@ var myCallback = function(json) {
         // Zero out the time data, just compare by the date information
         return new Date(s.time).setHours(0, 0, 0, 0);
     })
-    console.log(binsDaily);
+
     function propertyAverage(segments, param) {
         sum = segments.reduce(function(acc, segment) { return acc + segment[param]; }, 0);
         return sum / segments.length;
@@ -172,12 +172,12 @@ var myCallback = function(json) {
         const y = data.points[0].y;
         const property = data.points[0].curveNumber;
         clearSliderContent();
-        loadSliderContent(binsDaily, x, y, property);
+        loadSliderContent(binsDaily, x, y, (property + 1));
         const slider = $('#slider').slideReveal({
             push: false,
             overlay: true,
             position: "right",
-            width: 500
+            width: 375
         });
         slider.slideReveal('show');
     });
@@ -421,7 +421,10 @@ function loadSliderContent(binsDaily, x, y, property) {
         const contentHeader = document.createElement('h4');
         const segmentTime = new Date(parseInt(segments[i]['time']));
         const options = {hour: 'numeric', minute: 'numeric', second: 'numeric'};
-        contentHeader.innerHTML = segmentTime.toLocaleDateString("en-US", options);
+        contentHeader.innerHTML = segmentTime.toLocaleDateString("en-US", options); //TODO remove date
+        const description = document.createElement('p')
+        description.innerHTML = Object.values(segments[i])[property];
+        contentHeader.appendChild(description);
         tlContent.appendChild(contentHeader);
         tlSubState.appendChild(tlContent);
         tlStates.appendChild(tlSubState);

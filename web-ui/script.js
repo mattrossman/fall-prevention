@@ -171,11 +171,8 @@ var myCallback = function(json) {
         const x = data.points[0].x;
         const y = data.points[0].y;
         const property = data.points[0].curveNumber;
-        const date = x.split("-").map(string => parseInt(string));
-        const unixTime = Math.round(new Date(date[0], date[1] - 1, date[2]));
-        alert("bitch!");
-        //access walking segments from that day in binsDaily
-        segments = binsDaily[unixTime];
+        clearSliderContent();
+        loadSliderContent(binsDaily, x, y, property);
         const slider = $('#slider').slideReveal({
             push: false,
             overlay: true,
@@ -378,6 +375,32 @@ function plotlyGetRelayout(properties) {
     };
     return layout;
     
+}
+
+function clearSliderContent() {
+    const content = document.getElementById('slideContent');
+    if (content != null) {
+        content.parentNode.removeChild(content);
+    }
+}
+
+function loadSliderContent(binsDaily, x, y, property) {
+    const date = x.split("-").map(string => parseInt(string));
+    const dateObj = new Date(date[0], date[1] - 1, date[2]);
+    const unixTime = Math.round(dateObj);
+    //access walking segments from that day in binsDaily
+    segments = binsDaily[unixTime];
+
+    const slider = document.getElementById('slider');
+    const content = document.createElement('div');
+    content.setAttribute('id', 'slideContent');
+    const header = document.createElement('header');
+    const options = {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'};
+    const headerText = document.createElement('a');
+    headerText.innerHTML = dateObj.toLocaleDateString("en-US", options);
+    header.appendChild(headerText);
+    content.appendChild(header);
+    slider.appendChild(content);
 }
 
 loadJSON(myCallback);

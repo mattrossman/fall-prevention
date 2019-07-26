@@ -3,6 +3,7 @@ import numpy as np
 from matplotlib import animation
 from matplotlib.colors import LinearSegmentedColormap
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 from smartfloor import Floor
 from kinect import KinectRecording
 import sys
@@ -17,6 +18,7 @@ walk_segments = [
     },
     {
         'pressure_path': 'data/time-sync-walk-2.csv',
+        'rgb_path': '',
         'start': '2019-07-19T22:53:43',
         'end': '2019-07-19T22:53:49'
     },
@@ -27,7 +29,7 @@ walk_segments = [
         'end': '2019-07-19 22:56:21'
     }
 ]
-segment = walk_segments[2]
+segment = walk_segments[0]
 
 """ SET UP SOURCE DATA """
 framerate_hz = 25
@@ -42,7 +44,7 @@ speed = floor.cop_speed().interp(time=samples).rolling(time=window, center=True)
 accel = (speed - speed.shift(time=1)).rolling(time=window, center=True).mean()
 
 
-def update_frame(i):
+def update_fig(i):
     dt = samples[i]
     fig.suptitle(f'Time: {dt.strftime("%H:%M:%S:%f")}')
     """ TOP PLOT """
@@ -56,7 +58,6 @@ def update_frame(i):
     scrub_line.set_data([dt, dt], [0, 1])
     cop_dot[0].set_data(x, y)
     cop_dot[0].set_markersize(10 * mag / cop.magnitude.max(dim='time'))
-    print(f'Progress: {i}/{samples.size}')
 
 
 """ SET UP GRID LAYOUT """
@@ -80,10 +81,28 @@ ax2.invert_yaxis()
 ax2.set_aspect('equal', adjustable='box')
 plt.xticks(size=6, rotation='horizontal', ha='center')  # Smaller timestamp labels
 plt.tight_layout(pad=0.4, w_pad=0.5)
-update_frame(0)
+update_fig(0)
+
+
+def onclick(event):
+    if event.inaxes is not None:
+        ax = event.inaxes
+        if ax is ax3:
+            dt = mdates.num2date(event.xdata)
+            i = samples.get_loc(dt, method='nearest')
+            update_fig(i)
+
+
+cid = fig.canvas.mpl_connect('button_press_event', onclick)
+
+
+def update_frame(i):
+    print(f'\rProgress: {i}/{samples.size}')
+    update_fig(i)
 
 
 def animate(path=None):
+    print()
     ani = animation.FuncAnimation(fig, update_frame, frames=samples.size,
                                   interval=1000, save_count=sys.maxsize)
     if path is not None:
@@ -93,7 +112,7 @@ def animate(path=None):
 
 
 """ LOCAL MIN IN COP SPEED """
-_i_local_min = argrelmin(speed.values, order=window * 7)[0]
+_i_local_min = argrelmin(speed.values)[0]
 local_min = speed.isel(time=_i_local_min)
 ax3.scatter(local_min.time.values, local_min, c='r')
 local_min_cop = cop.isel(time=_i_local_min)

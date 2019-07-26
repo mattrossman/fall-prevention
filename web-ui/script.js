@@ -415,28 +415,38 @@ function loadSliderContent(binsDaily, x, y, property) {
     //walking segments
     for (var i = 0; i < segments.length; i++) {
         const tlSubState = document.createElement('div');
-        tlSubState.setAttribute('class', 'cntl-state');
+        tlSubState.setAttribute('class', 'cntl-state cntl-animate');
         const tlContent = document.createElement('div');
-        tlSubState.setAttribute('class', 'ccntl-content');
+        tlSubState.setAttribute('class', 'cntl-content');
         const contentHeader = document.createElement('h4');
         const segmentTime = new Date(parseInt(segments[i]['time']));
-        const options = {hour: 'numeric', minute: 'numeric', second: 'numeric'};
-        contentHeader.innerHTML = segmentTime.toLocaleDateString("en-US", options); //TODO remove date
+        contentHeader.innerHTML = segmentTime.toLocaleTimeString("en-US");
         const description = document.createElement('p')
         description.innerHTML = Object.values(segments[i])[property];
-        contentHeader.appendChild(description);
         tlContent.appendChild(contentHeader);
+        tlContent.appendChild(description);
         tlSubState.appendChild(tlContent);
+        const tlIcon = document.createElement('div');
+        tlIcon.setAttribute('class', 'cntl-icon cntl-center');
+        tlIcon.innerHTML = i;
+        tlSubState.append(tlIcon);
         tlStates.appendChild(tlSubState);
     }
     tl.appendChild(tlStates);
-
-
-
     header.appendChild(headerText);
     content.appendChild(header);
     content.appendChild(tl);
     slider.appendChild(content);
 }
+
+$(document).ready(function(e){
+    $('.cntl').cntl({
+        revealbefore: 300,
+        anim_class: 'cntl-animate',
+        onreveal: function(e){
+            console.log(e);
+        }
+    });
+});
 
 loadJSON(myCallback);

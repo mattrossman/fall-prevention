@@ -176,7 +176,7 @@ class Floor:
             Readings for the entire floor with x, y, and time dimensions
         """
         da = xr.DataArray(xr.concat([board.da for board in self.boards], dim='x'))
-        return _nonnegative_darray(da.interpolate_na(dim='time', method='spline').dropna(dim='time'))
+        return _nonnegative_darray(da.interpolate_na(dim='time', method='linear').dropna(dim='time'))
 
     @staticmethod
     def _get_cop_dataset(da: xr.DataArray) -> xr.Dataset:
@@ -234,6 +234,17 @@ class Floor:
     def cop_speed(self):
         vel = self.cop_vel()
         return xu.sqrt(xu.square(vel.x) + xu.square(vel.y))
+
+    def trim(self, start, end):
+        """Trim the time dimension of the data array
+
+        Parameters
+        ----------
+        start : str, datetime
+        end : str, datetime
+            The bounds to slice between, can be formatted as a string for pandas to parse
+        """
+        self.da = self.da.sel(time=slice(pd.Timestamp(start), pd.Timestamp(end)))
 
 
 def _df_from_csv(path) -> pd.DataFrame:

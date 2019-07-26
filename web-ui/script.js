@@ -177,7 +177,7 @@ var myCallback = function(json) {
             push: false,
             overlay: true,
             position: "right",
-            width: 500
+            width: 300
         });
         slider.slideReveal('show');
     });
@@ -420,7 +420,8 @@ function loadSliderContent(binsDaily, x, y, property) {
         tlContent.setAttribute('class', 'cntl-content');
         const contentHeader = document.createElement('h4');
         const segmentTime = new Date(parseInt(segments[i]['time']));
-        contentHeader.innerHTML = segmentTime.toLocaleTimeString("en-US");
+        const stringTime = segmentTime.toLocaleTimeString("en-US");
+        contentHeader.innerHTML = stringTime;
         const description = document.createElement('p')
         description.innerHTML = Object.values(segments[i])[property];
         tlContent.appendChild(contentHeader);
@@ -428,11 +429,12 @@ function loadSliderContent(binsDaily, x, y, property) {
         tlSubState.appendChild(tlContent);
         const tlIcon = document.createElement('div');
         tlIcon.setAttribute('class', 'cntl-icon cntl-center');
-        tlIcon.innerHTML = i;
+        tlIcon.innerHTML = segmentTime.toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'});
         tlSubState.appendChild(tlIcon);
         tlStates.appendChild(tlSubState);
     }
     tl.appendChild(tlStates);
+    tl.setAttribute('style', 'overflow-y:auto;');
     header.appendChild(headerText);
     content.appendChild(header);
     content.appendChild(tl);

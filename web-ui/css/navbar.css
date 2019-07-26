@@ -31,6 +31,7 @@ body {
 /* Slider Styles */
 #slider {
   background: #37474F;
+  overflow: auto;
 }
 
 /* Sidebar Styles */

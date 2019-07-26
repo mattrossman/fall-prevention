@@ -5,7 +5,7 @@ from smartfloor import Floor
 import sys
 
 
-floor = Floor.from_csv('data/1_131.2lbs.csv')
+floor = Floor.from_csv('data/time-sync-walk-4.csv')
 lo, hi = floor.range()
 safe_range = pd.date_range(start=lo, end=hi, freq='40ms')
 
@@ -20,12 +20,12 @@ def update_quad_data(args):
     i, dt = args
     plt.title(f'Time: {dt.strftime("%H:%M:%S")} | Frame: {i}')
     quad.set_array(floor.denoise().interp(time=dt).stack(z=('y', 'x')))
-    x, y, mag = floor.cop.interp(time=dt).to_array()
+    x, y, mag = floor.cop().interp(time=dt).to_array()
     cop[0].set_data(x, y, )
-    cop[0].set_markersize(20 * mag / floor.cop.magnitude.max(dim='time'))
+    cop[0].set_markersize(20 * mag / floor.cop().magnitude.max(dim='time'))
 
 
-ani = animation.FuncAnimation(fig, update_quad_data, frames=enumerate(safe_range[100:]),
+ani = animation.FuncAnimation(fig, update_quad_data, frames=enumerate(safe_range),
                               interval=1000, save_count=sys.maxsize)
 
 

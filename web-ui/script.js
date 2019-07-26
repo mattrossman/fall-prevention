@@ -177,7 +177,7 @@ var myCallback = function(json) {
             push: false,
             overlay: true,
             position: "right",
-            width: 375
+            width: 500
         });
         slider.slideReveal('show');
     });
@@ -415,9 +415,9 @@ function loadSliderContent(binsDaily, x, y, property) {
     //walking segments
     for (var i = 0; i < segments.length; i++) {
         const tlSubState = document.createElement('div');
-        tlSubState.setAttribute('class', 'cntl-state cntl-animate');
+        tlSubState.setAttribute('class', 'cntl-state');
         const tlContent = document.createElement('div');
-        tlSubState.setAttribute('class', 'cntl-content');
+        tlContent.setAttribute('class', 'cntl-content');
         const contentHeader = document.createElement('h4');
         const segmentTime = new Date(parseInt(segments[i]['time']));
         contentHeader.innerHTML = segmentTime.toLocaleTimeString("en-US");
@@ -429,7 +429,7 @@ function loadSliderContent(binsDaily, x, y, property) {
         const tlIcon = document.createElement('div');
         tlIcon.setAttribute('class', 'cntl-icon cntl-center');
         tlIcon.innerHTML = i;
-        tlSubState.append(tlIcon);
+        tlSubState.appendChild(tlIcon);
         tlStates.appendChild(tlSubState);
     }
     tl.appendChild(tlStates);

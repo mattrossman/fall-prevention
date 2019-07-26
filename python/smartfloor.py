@@ -221,7 +221,7 @@ class Floor:
 
     def denoise(self):
         init_pass = _nonnegative_darray(self.da - self.noise)
-        return self._masked_by_max(init_pass, 2)
+        return self._masked_by_max(init_pass, 2).fillna(0)
 
     def cop(self):
         return self._get_cop_dataset(self.denoise())

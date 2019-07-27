@@ -23,7 +23,6 @@ body {
 	top: 0;
 	bottom: 0;
 	background-color: #009ABB;
-	/*box-shadow: inset 0px 0px 7px -2px #000;*/
 }
 
 
@@ -77,12 +76,6 @@ body {
 	position:relative;
 	margin-left: 5%;
 }
-/*
-.cntl-state:nth-child(2n+2) .cntl-content {
-	float:right;
-	margin-right: 0%;
-}
-*/
 
 .cntl-image {
 	opacity:0;

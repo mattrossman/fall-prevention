@@ -136,7 +136,7 @@ class Floor:
 
     board_map = [19, 17, 21, 18]
 
-    def __init__(self, df: pd.DataFrame):
+    def __init__(self, df: pd.DataFrame, freq='40ms', start=None, end=None):
         """
         Parameters
         ----------
@@ -146,14 +146,21 @@ class Floor:
         self.df = df
         self.boards = [Board(df, board_id, x * Board.width, 0)
                        for (x, board_id) in enumerate(Floor.board_map)]
+        all_start, all_end = Floor._range(self.boards)
+        self.freq = pd.Timedelta(freq)
+        start = start or all_start
+        end = end or all_end
+        sample_times = pd.date_range(start, end, freq=pd.Timedelta(freq))
         self.da = self._get_darray()
         self.noise = self.da.isel(time=0)
+        self.samples = self.da.interp(time=sample_times)
 
     @staticmethod
-    def from_csv(path):
-        return Floor(_df_from_csv(path))
+    def from_csv(path, *args,**kwargs):
+        return Floor(_df_from_csv(path), *args, **kwargs)
 
-    def range(self) -> Tuple[datetime, datetime]:
+    @staticmethod
+    def _range(boards) -> Tuple[datetime, datetime]:
         """Get the interpolatable range for the floor
 
         Returns
@@ -163,8 +170,8 @@ class Floor:
         high : datetime
             The last time at which all boards are recording
         """
-        lo = max(board.df.index[0] for board in self.boards)
-        hi = min(board.df.index[-1] for board in self.boards)
+        lo = max(board.df.index[0] for board in boards)
+        hi = min(board.df.index[-1] for board in boards)
         return lo, hi
 
     def _get_darray(self) -> xr.DataArray:
@@ -219,24 +226,45 @@ class Floor:
         masked = (da.where((abs(da.x - ds.x) <= dist)).where(abs(da.y - ds.y) <= dist))
         return masked
 
-    def denoise(self):
-        init_pass = _nonnegative_darray(self.da - self.noise)
+    def _denoise(self, da: xr.DataArray):
+        init_pass = _nonnegative_darray(da - self.noise)
         return self._masked_by_max(init_pass, 2).fillna(0)
 
+    @property
+    def pressure(self):
+        return self._denoise(self.samples)
+
+    @property
     def cop(self):
-        return self._get_cop_dataset(self.denoise())
+        return self._get_cop_dataset(self.pressure)
 
+    @property
     def cop_vel(self):
-        cop = self.cop()
-        time_diff = (cop.time - cop.time.shift(time=1)) / np.timedelta64(1, 's')  # convert to seconds
-        return (cop - cop.shift(time=1)) / time_diff
+        cop = self.cop
+        return (cop - cop.shift(time=1)) / (self.freq / pd.Timedelta('1s'))
 
+    @property
     def cop_speed(self):
-        vel = self.cop_vel()
+        vel = self.cop_vel
         return xu.sqrt(xu.square(vel.x) + xu.square(vel.y))
 
+    @property
+    def cop_delta_speed(self):
+        speed = self.cop_speed
+        return (speed - speed.shift(time=1)) / (self.freq / pd.Timedelta('1s'))
+
+    @property
+    def cop_accel(self):
+        vel = self.cop_vel
+        return (vel - vel.shift(time=1)) / (self.freq / pd.Timedelta('1s'))
+    
+    @property
+    def cop_accel_scalar(self):
+        accel = self.cop_accel
+        return xu.sqrt(xu.square(accel.x) + xu.square(accel.y))
+
     def trim(self, start, end):
-        """Trim the time dimension of the data array
+        """[DEPRECATED] Trim the time dimension of the data array
 
         Parameters
         ----------
@@ -256,19 +284,3 @@ def _df_from_csv(path) -> pd.DataFrame:
 
 def _nonnegative_darray(da: xr.DataArray):
     return da.where(da > 0).fillna(0)
-
-
-class Segment(Floor):
-    """A segment is a floor recording for a selected period of time at a set frequency
-
-    Note that a Floor can contain data at no set frequency
-
-    """
-    def __init__(self, df, start, end, freq='40ms'):
-        super().__init__(df)
-        self.date_range = pd.date_range(start=start, end=end, freq=freq)
-        self.da = self.da.interp(time=self.date_range)
-
-    @staticmethod
-    def from_csv(path, *args, **kwargs):
-        return Segment(_df_from_csv(path), *args, **kwargs)

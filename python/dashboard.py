@@ -8,6 +8,7 @@ from smartfloor import Floor
 from kinect import KinectRecording
 import sys
 from scipy.signal import argrelmin
+import xarray.ufuncs as xu
 
 walk_segments = [
     {
@@ -17,8 +18,8 @@ walk_segments = [
         'end': '2019-07-19T22:53:04'
     },
     {
-        'pressure_path': 'data/time-sync-walk-2.csv',
-        'rgb_path': '',
+        'pressure_path': 'data/time-sync-walk-2/smartfloor.csv',
+        'rgb_path': 'data/time-sync-walk-2/Color',
         'start': '2019-07-19T22:53:43',
         'end': '2019-07-19T22:53:49'
     },
@@ -38,17 +39,17 @@ walk_segments = [
 segment = walk_segments[0]
 
 """ SET UP SOURCE DATA """
-framerate_hz = 25
-smoothing = 3
+framerate_hz = 100
+smoothing = 1
 frame_delay = 1000/framerate_hz
 window = int(framerate_hz / 25 * smoothing)
 kr = KinectRecording(segment['rgb_path'])
-floor = Floor.from_csv(segment['pressure_path'])
-samples = pd.date_range(segment['start'], segment['end'], freq=pd.Timedelta(frame_delay, 'ms'))
-pressure = floor.denoise().interp(time=samples)
-cop = floor.cop().interp(time=samples)
-speed = floor.cop_speed().interp(time=samples).rolling(time=window, center=True).mean()
-accel = (speed - speed.shift(time=1)).rolling(time=window, center=True).mean()
+floor = Floor.from_csv(segment['pressure_path'], freq=pd.Timedelta(framerate_hz, 'ms'), start=segment['start'], end=segment['end'])
+samples = pd.DatetimeIndex(floor.samples.time.values)
+pressure = floor.pressure.rolling(time=window).mean()
+cop = floor.cop.rolling(time=window).mean()
+speed = floor.cop_speed.rolling(time=window).mean()
+delta_speed = floor.cop_delta_speed.rolling(time=window).mean()
 
 
 def update_fig(i):
@@ -80,9 +81,10 @@ try:
 except FileNotFoundError:
     img = None
 quad = pressure.isel(time=0).plot(ax=ax2, vmin=0, vmax=1023, add_colorbar=False)
-speed.rolling(time=1, center=True).mean().plot(ax=ax3)
-accel.plot()
-(cop.magnitude / 1024 * 20).plot()
+speed.plot(ax=ax3)
+(delta_speed / 15).plot(ax=ax3)
+
+# (cop.magnitude / 1024 * 20).plot()
 scrub_line = ax3.axvline(samples[0], c='r')
 cop_dot = ax2.plot(0, 0, 'ro')
 ax1.set_axis_off()
@@ -123,8 +125,8 @@ def animate(path=None):
 
 
 """ LOCAL MIN IN COP SPEED """
-_i_local_min = argrelmin(speed.values)[0]
-local_min = speed.isel(time=_i_local_min)
-ax3.scatter(local_min.time.values, local_min, c='r')
-local_min_cop = cop.isel(time=_i_local_min)
-ax2.scatter(local_min_cop.x, local_min_cop.y, c='y')
+_i_anchors = argrelmin(speed.values)[0]
+anchors = speed.isel(time=_i_anchors)
+ax3.scatter(anchors.time.values, anchors, c='r')
+anchors_cop = cop.isel(time=_i_anchors)
+ax2.scatter(anchors_cop.x, anchors_cop.y, c='y')

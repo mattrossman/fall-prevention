@@ -33,8 +33,9 @@ segment = walk_segments[0]
 
 """ SET UP SOURCE DATA """
 framerate_hz = 25
+smoothing = 3
 frame_delay = 1000/framerate_hz
-window = int(framerate_hz / 25)
+window = int(framerate_hz / 25 * smoothing)
 kr = KinectRecording(segment['rgb_path'])
 floor = Floor.from_csv(segment['pressure_path'])
 samples = pd.date_range(segment['start'], segment['end'], freq=pd.Timedelta(frame_delay, 'ms'))
@@ -48,7 +49,8 @@ def update_fig(i):
     dt = samples[i]
     fig.suptitle(f'Time: {dt.strftime("%H:%M:%S:%f")}')
     """ TOP PLOT """
-    img.set_data(kr.imread(dt))
+    if img is not None:
+        img.set_data(kr.imread(dt))
 
     """ MIDDLE PLOT """
     quad.set_array(pressure.isel(time=i).stack(z=('y', 'x')))
@@ -67,7 +69,10 @@ ax2 = plt.subplot2grid((2, 2), (0, 1))
 ax3 = plt.subplot2grid((2, 2), (1, 0), colspan=2)
 
 """ INIT PLOTS """
-img = ax1.imshow(kr.imread(samples[0]))
+try:
+    img = ax1.imshow(kr.imread(samples[0]))
+except FileNotFoundError:
+    img = None
 quad = pressure.isel(time=0).plot(ax=ax2, vmin=0, vmax=1023, add_colorbar=False)
 speed.rolling(time=1, center=True).mean().plot(ax=ax3)
 accel.plot()

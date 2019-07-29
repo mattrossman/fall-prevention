@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
 
@@ -12,8 +13,10 @@ class KinectRecording:
         self.df.index = pd.to_datetime(self.df.index, unit='ms')
         self.df.sort_index(inplace=True)
 
-    def imread(self, dt: datetime):
+    def imread(self, dt: datetime, reversed=True):
         index = self.df.index.get_loc(dt, method='ffill')
         entry = self.df.iloc[index]
         filename = f'{entry["time_rel"]}_{entry["frame"]}.jpg'
-        return plt.imread(f'{self.dir_path}/{filename}')
+        img = plt.imread(f'{self.dir_path}/{filename}')
+        img = np.flip(img, axis=1) if reversed else img
+        return img

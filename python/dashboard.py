@@ -35,7 +35,7 @@ walk_segments = [
         'end': '2019-07-19 22:56:21'
     }
 ]
-segment = walk_segments[2]
+segment = walk_segments[0]
 
 """ SET UP SOURCE DATA """
 framerate_hz = 25
@@ -108,7 +108,7 @@ cid = fig.canvas.mpl_connect('button_press_event', onclick)
 
 
 def update_frame(i):
-    print(f'\rProgress: {i}/{samples.size}')
+    print(f'\rProgress: {i}/{samples.size}', end='')
     update_fig(i)
 
 

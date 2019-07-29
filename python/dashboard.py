@@ -23,13 +23,19 @@ walk_segments = [
         'end': '2019-07-19T22:53:49'
     },
     {
+        'pressure_path': 'data/time-sync-walk-3.csv',
+        'rgb_path': '',
+        'start': '2019-07-19T22:54:17.36',
+        'end': '2019-07-19T22:54:24.28'
+    },
+    {
         'pressure_path': 'data/time-sync-walk-4/smartfloor.csv',
         'rgb_path': 'data/time-sync-walk-4/Color',
         'start': '2019-07-19 22:56:10',
         'end': '2019-07-19 22:56:21'
     }
 ]
-segment = walk_segments[0]
+segment = walk_segments[2]
 
 """ SET UP SOURCE DATA """
 framerate_hz = 25

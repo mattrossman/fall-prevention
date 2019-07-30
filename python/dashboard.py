@@ -9,6 +9,7 @@ from kinect import KinectRecording
 import sys
 from scipy.signal import argrelmin, argrelmax
 import xarray.ufuncs as xu
+import xarray as xr
 
 walk_segments = [
     {
@@ -80,7 +81,7 @@ try:
 except FileNotFoundError:
     img = None
 quad = pressure.isel(time=0).plot(ax=ax2, vmin=0, vmax=1023, add_colorbar=False)
-speed.plot(ax=ax3)
+floor.cop_speed.plot(ax=ax3)
 
 scrub_line = ax3.axvline(samples[0], c='r')
 cop_dot = ax2.plot(0, 0, 'ro')
@@ -121,9 +122,31 @@ def animate(path=None):
         ani.save(path, writer=writer)
 
 
-""" PLOT THE VALID STEPS """
-for step_time in floor.valid_anchors.time.values:
+""" PLOT THE FOOTSTEP MARKERS """
+steps = floor.footsteps
+
+for step_time in steps.time.values:
     ax3.axvline(step_time, c='k', linestyle='--')
 
-steps_cop = cop.sel(time=floor.valid_anchors.time)
-ax2.scatter(steps_cop.x, steps_cop.y, c='y')
+# ax2.scatter(steps.x, steps.y, c='y')
+
+
+def starting_foot(ds):
+    step1 = ds.isel(window=0)
+    step2 = ds.isel(window=1)
+    step3 = ds.isel(window=2)
+    v_step = np.array([step2.x - step1.x, step2.y - step1.y])
+    v_stride = np.array([step3.x - step1.x, step3.y - step1.y])
+    dot = v_step[0] * -v_stride[1] + v_step[1] * v_stride[0]
+    return 'right' if dot > 0 else 'left'
+
+
+gait_cycles = steps.rolling(time=3).construct('window').dropna('time').groupby('time')
+feet = xr.DataArray([starting_foot(sl) for _, sl in gait_cycles], dims='time',
+                    coords={'time': steps.time[1:-1]})
+
+rights = cop.sel(time=feet[feet == 'right'].time)
+lefts = cop.sel(time=feet[feet == 'left'].time)
+
+ax2.scatter(rights.x, rights.y, c='yellow')
+ax2.scatter(lefts.x, lefts.y, c='green')

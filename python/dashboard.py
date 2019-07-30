@@ -128,25 +128,8 @@ steps = floor.footsteps
 for step_time in steps.time.values:
     ax3.axvline(step_time, c='k', linestyle='--')
 
-# ax2.scatter(steps.x, steps.y, c='y')
-
-
-def starting_foot(ds):
-    step1 = ds.isel(window=0)
-    step2 = ds.isel(window=1)
-    step3 = ds.isel(window=2)
-    v_step = np.array([step2.x - step1.x, step2.y - step1.y])
-    v_stride = np.array([step3.x - step1.x, step3.y - step1.y])
-    dot = v_step[0] * -v_stride[1] + v_step[1] * v_stride[0]
-    return 'right' if dot > 0 else 'left'
-
-
-gait_cycles = steps.rolling(time=3).construct('window').dropna('time').groupby('time')
-feet = xr.DataArray([starting_foot(sl) for _, sl in gait_cycles], dims='time',
-                    coords={'time': steps.time[1:-1]})
-
-rights = cop.sel(time=feet[feet == 'right'].time)
-lefts = cop.sel(time=feet[feet == 'left'].time)
+rights = cop.sel(time=steps.dir[steps.dir == 'right'].time)
+lefts = cop.sel(time=steps.dir[steps.dir == 'left'].time)
 
 ax2.scatter(rights.x, rights.y, c='yellow')
 ax2.scatter(lefts.x, lefts.y, c='green')

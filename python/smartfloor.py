@@ -286,7 +286,27 @@ class Floor:
         """
         ds = xr.Dataset({'anchors': self._anchors, 'motions': self._weight_shifts[self._weight_shifts > 3]})
         valid_anchors = xu.logical_and(ds.anchors.notnull(), ds.motions.shift(time=-1).notnull())
-        return self.cop.sel(time=ds.anchors[valid_anchors].time)
+        steps = self.cop.sel(time=ds.anchors[valid_anchors].time)
+        return steps.assign(dir=self._step_dirs(steps))
+
+    @staticmethod
+    def _step_dirs(steps: xr.Dataset):
+        gait_cycles = steps.rolling(time=3).construct('window').dropna('time').groupby('time')
+        feet = xr.DataArray([Floor._starting_foot(sl) for _, sl in gait_cycles], dims='time',
+                            coords={'time': steps.time[1:-1]})
+        return feet
+
+    @staticmethod
+    def _starting_foot(cycle: xr.Dataset):
+        """Determine whether the middle foot in the cycle is a right or left foot
+        """
+        step1 = cycle.isel(window=0)
+        step2 = cycle.isel(window=1)
+        step3 = cycle.isel(window=2)
+        v_step = np.array([step2.x - step1.x, step2.y - step1.y])
+        v_stride = np.array([step3.x - step1.x, step3.y - step1.y])
+        dot = v_step[0] * -v_stride[1] + v_step[1] * v_stride[0]
+        return 'right' if dot > 0 else 'left'
 
     def trim(self, start, end):
         """[DEPRECATED] Trim the time dimension of the data array

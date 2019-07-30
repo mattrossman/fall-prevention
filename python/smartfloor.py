@@ -4,6 +4,7 @@ import numpy as np
 import xarray as xr
 import xarray.ufuncs as xu
 from datetime import datetime
+from scipy.signal import argrelmin, argrelmax
 from typing import List, Tuple
 
 
@@ -262,6 +263,30 @@ class Floor:
     def cop_accel_scalar(self):
         accel = self.cop_accel
         return xu.sqrt(xu.square(accel.x) + xu.square(accel.y))
+
+    @property
+    def _anchors(self):
+        """Points along COP trajectory with minimal motion, good for marking a foot position
+        """
+        cop_speed = self.cop_speed.rolling(time=10, center=True).mean()
+        ixs = argrelmin(cop_speed.values, order=3)[0]
+        return cop_speed.isel(time=ixs)
+
+    @property
+    def _weight_shifts(self):
+        """ Points of highest velocity increase
+        """
+        cop_delta_speed = self.cop_delta_speed.rolling(time=10, center=True).mean()
+        ixs = argrelmax(cop_delta_speed.values, order=3)[0]
+        return cop_delta_speed.isel(time=ixs)
+
+    @property
+    def valid_anchors(self):
+        """A valid anchor is an anchor immediately followed by a motion spike
+        """
+        ds = xr.Dataset({'anchors': self._anchors, 'motions': self._weight_shifts[self._weight_shifts > 3]})
+        valid_anchors = xu.logical_and(ds.anchors.notnull(), ds.motions.shift(time=-1).notnull())
+        return ds.anchors[valid_anchors]
 
     def trim(self, start, end):
         """[DEPRECATED] Trim the time dimension of the data array

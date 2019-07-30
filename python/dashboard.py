@@ -36,7 +36,7 @@ walk_segments = [
         'end': '2019-07-19 22:56:21'
     }
 ]
-segment = walk_segments[1]
+segment = walk_segments[3]
 
 """ SET UP SOURCE DATA """
 framerate_hz = 25
@@ -50,7 +50,6 @@ pressure = floor.pressure
 cop = floor.cop
 speed = floor.cop_speed.rolling(time=window, center=True).mean()
 delta_speed = floor.cop_delta_speed.rolling(time=window, center=True).mean()
-delta_speed = delta_speed / 15  # Scale for plotting
 
 def update_fig(i):
     dt = samples[i]
@@ -81,11 +80,8 @@ try:
 except FileNotFoundError:
     img = None
 quad = pressure.isel(time=0).plot(ax=ax2, vmin=0, vmax=1023, add_colorbar=False)
-floor.cop_speed.plot(ax=ax3)
 speed.plot(ax=ax3)
-delta_speed.plot(ax=ax3)
 
-# (cop.magnitude / 1024 * 20).plot()
 scrub_line = ax3.axvline(samples[0], c='r')
 cop_dot = ax2.plot(0, 0, 'ro')
 ax1.set_axis_off()
@@ -125,38 +121,9 @@ def animate(path=None):
         ani.save(path, writer=writer)
 
 
-""" LOCAL MIN IN COP SPEED """
-_i_anchors = argrelmin(speed.values, order=3)[0]
-anchors = speed.isel(time=_i_anchors)
-ax3.scatter(anchors.time.values, anchors, c='b')
-
-_i_heels = argrelmax(delta_speed.values, order=3)[0]
-heels = delta_speed.isel(time=_i_heels)
-ax3.scatter(heels.time.values, heels, c='r')
-
-df_events = pd.DataFrame(index=range(floor.samples.time.size))
-df_events['anchor'] = df_events.index.isin(_i_anchors)
-df_events['heel'] = df_events.index.isin(_i_heels)
-df_any_event = df_events[df_events.any(axis=1)]
-
-s_anchors = pd.Series(anchors, index=_i_anchors)
-s_heels = pd.Series(heels, index=_i_heels)
-s_heels = s_heels[s_heels > 0.2]  # Filter out false max
-
-valid_steps = []
-for i in _i_anchors:
-    next_anchor = s_anchors.loc[i+1:].first_valid_index()
-    next_heel = s_heels.loc[i+1:].first_valid_index()
-    if next_heel is not None:
-        if next_anchor is not None and next_anchor < next_heel:
-            pass
-        elif s_heels.loc[next_heel] > 0.:
-            valid_steps.append(i)
-
 """ PLOT THE VALID STEPS """
-for step in valid_steps:
-    dt = samples[step]
-    ax3.axvline(dt, c='k', linestyle='--')
+for step_time in floor.valid_anchors.time.values:
+    ax3.axvline(step_time, c='k', linestyle='--')
 
-steps_cop = cop.isel(time=valid_steps)
+steps_cop = cop.sel(time=floor.valid_anchors.time)
 ax2.scatter(steps_cop.x, steps_cop.y, c='y')

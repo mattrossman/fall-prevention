@@ -294,6 +294,10 @@ class Floor:
         gait_cycles = steps.rolling(time=3).construct('window').dropna('time').groupby('time')
         feet = xr.DataArray([Floor._starting_foot(sl) for _, sl in gait_cycles], dims='time',
                             coords={'time': steps.time[1:-1]})
+        # Assume first and last steps follow typical alternation
+        feet = feet.reindex_like(steps)
+        feet[0] = 'left' if feet[1].item() == 'right' else 'right'
+        feet[-1] = 'left' if feet[-2].item() == 'right' else 'right'
         return feet
 
     @staticmethod

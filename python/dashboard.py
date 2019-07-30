@@ -37,7 +37,7 @@ walk_segments = [
         'end': '2019-07-19 22:56:21'
     }
 ]
-segment = walk_segments[3]
+segment = walk_segments[0]
 
 """ SET UP SOURCE DATA """
 framerate_hz = 25

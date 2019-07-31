@@ -236,12 +236,12 @@ class Floor:
         return self._denoise(self.samples)
 
     @property
-    def cop(self):
+    def _cop_abs(self):
         return self._get_cop_dataset(self.pressure)
 
     @property
     def cop_vel(self):
-        cop = self.cop
+        cop = self._cop_abs
         return (cop - cop.shift(time=1)) / (self.freq / pd.Timedelta('1s'))
 
     @property
@@ -286,7 +286,7 @@ class Floor:
         """
         ds = xr.Dataset({'anchors': self._anchors, 'motions': self._weight_shifts[self._weight_shifts > 3]})
         valid_anchors = xu.logical_and(ds.anchors.notnull(), ds.motions.shift(time=-1).notnull())
-        steps = self.cop.sel(time=ds.anchors[valid_anchors].time)
+        steps = self._cop_abs.sel(time=ds.anchors[valid_anchors].time)
         return steps.assign(dir=self._step_dirs(steps))
 
     @staticmethod
@@ -327,13 +327,24 @@ class Floor:
 
         Returns
         -------
-        start: Tuple[float, float]
-        end: Tuple[float, float]
+        start: xarray.Dataset
+        end: xarray.Dataset
         """
         footsteps = self.footsteps
         start = footsteps.isel(time=slice(None,2)).mean('time')
         end = footsteps.isel(time=slice(-2,None)).mean('time')
-        return (start.x.item(), start.y.item()), (end.x.item(), end.y.item())
+        return start[['x', 'y']], end[['x', 'y']]
+
+    def reorient(self, ds: xr.Dataset):
+        """Convert x, y positions to mediolateral, anteroposterior positions along walk line
+
+        Returns
+        -------
+        ds: xr.Dataset
+            Dataset containing (med, ant) data variables corresponding to the old (x, y) coordinates
+        """
+        start, end = self.walk_line
+
 
 
     def trim(self, start, end):

@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from numpy import linalg as LA
 from matplotlib import animation
 from matplotlib.colors import LinearSegmentedColormap
 import matplotlib.pyplot as plt
@@ -48,7 +49,7 @@ kr = KinectRecording(segment['rgb_path'])
 floor = Floor.from_csv(segment['pressure_path'], freq=pd.Timedelta(frame_delay, 'ms'), start=segment['start'], end=segment['end'])
 samples = pd.DatetimeIndex(floor.samples.time.values)
 pressure = floor.pressure
-cop = floor.cop
+cop = floor._cop_abs
 speed = floor.cop_speed.rolling(time=window, center=True).mean()
 delta_speed = floor.cop_delta_speed.rolling(time=window, center=True).mean()
 
@@ -136,4 +137,16 @@ ax2.scatter(lefts.x, lefts.y, c='green')
 
 """ PLOT THE WALK LINE """
 start_mid, end_mid = floor.walk_line
-ax2.plot(*zip(start_mid, end_mid), c='r')
+ax2.plot([start_mid.x, end_mid.x], [start_mid.y, end_mid.y], c='r')
+walk_length = LA.norm((end_mid - start_mid).to_array())
+norm_walk = (end_mid - start_mid) / walk_length
+
+rot_matrix = np.array([[norm_walk.x.item(), (-norm_walk.y).item()],
+                       [norm_walk.y.item(), norm_walk.x.item()]])
+
+rot_matrix2 = np.array([[(-norm_walk.y).item(), (-norm_walk.x).item()],
+                       [norm_walk.x.item(), (-norm_walk.y).item()]])
+
+reoriented = (floor.footsteps[['x', 'y']] - start_mid).to_array().values.T @ rot_matrix2.T
+v_midline = (end_mid - start_mid).to_array()
+reoriented2 = np.cross(v_midline, floor.footsteps[['x','y']].to_array().T - start_mid.to_array()) / walk_length

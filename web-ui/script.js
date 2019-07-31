@@ -109,7 +109,6 @@ var myCallback = function(json) {
             dailyAverages[day][property] = propertyAverage(binsDaily[day], property)
         });
     }
-    console.log(dailyAverages);
 
     //create 1D arrays for each property to later be used as y values
     propertyCols = {};

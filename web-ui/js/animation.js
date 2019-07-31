@@ -1,18 +1,20 @@
-import * as THREE from '../build/three.module.js';
+import * as THREE from './three.module.js';
 
-import Stats from './jsm/libs/stats.module.js';
-import { GUI } from './jsm/libs/dat.gui.module.js';
+import Stats from './stats.module.js';
+//import { GUI } from './jsm/libs/dat.gui.module.js';
 
-import { GLTFLoader } from './jsm/loaders/GLTFLoader.js';
+//import { GLTFLoader } from './jsm/loaders/GLTFLoader.js';
 
 var scene, renderer, camera, stats;
 var model, skeleton, mixer, clock;
 
-var crossFadeControls = [];
+//var crossFadeControls = [];
 
 var idleAction, walkAction, runAction;
 var idleWeight, walkWeight, runWeight;
 var actions, settings;
+
+var animations = new Array;
 
 var singleStepMode = false;
 var sizeOfNextStep = 0;
@@ -29,41 +31,39 @@ function loadJSON(callback) {
     xobj.send(null);
 }
 
-var animations = [];
-
 var getAnimationClip = function(json) {
-    const time_array = json['0']['0'][0][1]
-    const scale_arrays = json['0']['1'][0][2]
+    const time_array = json['0']['0'][1];
+    const scale_arrays = json['2']['0'][2];
     const scale_array = array_zipper(scale_arrays)
     var tracks = [];
     let i = 0;
-    for (const kf_type in Object.values(json)) {
-        for (const bones in Object.values(kf_type)) {
-            const kf;
+    Object.values(json).forEach(function(kf_type, i) {
+        Object.values(kf_type).forEach(function(bones) {
+            var kf = 0;
             if (i == 0) {
                 kf = new THREE.VectorKeyframeTrack(bones[0], time_array, array_zipper(bones[2]));
             } else if (i == 1) {
-                kf = new THREE.QuaternionKeyframeTrack(bones[0], times_array, array_zipper(bones[2]));
+                kf = new THREE.QuaternionKeyframeTrack(bones[0], time_array, array_zipper(bones[2]));
             } else {
                 kf = new THREE.VectorKeyframeTrack(bones[0], time_array, scale_array);
             }
             tracks.push(kf);
-        }
-        i++;
-    }
+        });
+    });
 
     const duration = time_array[time_array.length - 1]
     const name = 'walk_1'
 
-    animations[0] = new THREE.AnimationClip(name, duration, tracks);
+    animations.push(new THREE.AnimationClip(name, duration, tracks));
     
 }
 
-loadJSON(getAnimationClip);
 init();
 
 function init() {
 
+    loadJSON(getAnimationClip);
+    console.log(animations);
     var container = document.getElementById( 'container-fluid' );
 
     camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 1000 );
@@ -569,51 +569,76 @@ function animate() {
 function array_zipper(a_of_a) {
     var zipped = [];
     for (let i=0; i<a_of_a[0].length; i++) {
-        for (const array in a_of_a) {
+        a_of_a.forEach(function(array) {
             zipped.push(array[i]);
-        }
+        });
     }
     return zipped
 }
 
 function getSkeleton() {
     const Head = new THREE.Bone();
+    Head.name = "Head";
     const Neck = new THREE.Bone();
+    Neck.name = "Neck";
     const SpineShoulder = new THREE.Bone();
+    SpineShoulder.name = "SpineShoulder";
     const SpineMid = new THREE.Bone();
+    SpineMid.name = "SpineMid";
     const SpineBase = new THREE.Bone();
-
-
+    SpineBase.name = "SpineBase"
+ 
+    
     /////////////// RIGHT //////////////////
     //UPPER RIGHT
     const ShoulderRight = new THREE.Bone();
+    ShoulderRight.name = "ShoulderRight";
     const ElbowRight = new THREE.Bone();
+    ElbowRight.name = "ElbowRight";
     const WristRight = new THREE.Bone();
+    WristRight.name = "WristRight";
     const HandRight = new THREE.Bone();
+    HandRight.name = "HandRight";
     const ThumbRight = new THREE.Bone();
+    ThumbRight.name = "ThumbRight";
     const HandTipRight = new THREE.Bone();
+    HandTipRight.name = "HandTipRight";
 
     //LOWER RIGHT
     const HipRight = new THREE.Bone();
+    HipRight.name = "HipRight";
     const KneeRight = new THREE.Bone();
+    KneeRight.name = "KneeRight";
     const AnkleRight = new THREE.Bone();
+    AnkleRight.name = "AnkleRight";
     const FootRight = new THREE.Bone();
+    FootRight.name = "FootRight";
 
 
     /////////////// LEFT //////////////////
     //UPPER LEFT
     const ShoulderLeft = new THREE.Bone();
+    ShoulderLeft.name = "ShoulderLeft";
     const ElbowLeft = new THREE.Bone();
+    ElbowLeft.name = "ElbowLeft";
     const WristLeft = new THREE.Bone();
+    WristLeft.name = "WristLeft";
     const HandLeft= new THREE.Bone();
-    const ThumpLeft= new THREE.Bone();
-    const HandTipLeft= new THREE.Bone();
+    HandLeft.name = "HandLeft";
+    const ThumbLeft = new THREE.Bone();
+    ThumbLeft.name = "ThumbLeft";
+    const HandTipLeft = new THREE.Bone();
+    HandTipLeft.name = "HandTipLeft";
 
     //LOWER LEFT
     const HipLeft = new THREE.Bone();
+    HipLeft.name = "HipLeft";
     const KneeLeft= new THREE.Bone();
+    KneeLeft.name = "KneeLeft";
     const AnkleLeft= new THREE.Bone();
+    AnkleLeft.name = "AnkleLeft";
     const FootLeft = new THREE.Bone();
+    FootLeft.name = "FootLeft";
 
 
     /////////////// CONNECTING //////////////////
@@ -626,13 +651,13 @@ function getSkeleton() {
     HipRight.add(KneeRight);
 
     HandLeft.add(HandTipLeft);
-    HandLeft.add(ThumpLeft);
+    HandLeft.add(ThumbLeft);
     WristLeft.add(HandLeft);
     ElbowLeft.add(WristLeft);
     ShoulderLeft.add(ElbowLeft);
 
     HandRight.add(HandTipRight);
-    HandRight.add(ThumpRight);
+    HandRight.add(ThumbRight);
     WristRight.add(HandRight);
     ElbowRight.add(WristRight);
     ShoulderRight.add(ElbowRight);
@@ -651,5 +676,7 @@ function getSkeleton() {
     var bones = [];
 
     bones.push(Head, Neck, SpineShoulder, SpineMid, SpineBase, ShoulderRight, ElbowRight, WristRight, HandRight, ThumbRight, HandTipRight, HipRight, KneeRight, AnkleRight, FootRight, ShoulderLeft, ElbowLeft, WristLeft, HandLeft, ThumbLeft, HandTipLeft, HipLeft, KneeLeft, AnkleLeft, FootLeft);
-    return new THREE.Skeleton(bones);
+    //const s = new THREE.Skeleton(bones)
+    //console.log(s)
+    return (Head); //maybe???
 }

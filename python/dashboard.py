@@ -50,7 +50,7 @@ kr = KinectRecording(segment['rgb_path'])
 floor = Floor.from_csv(segment['pressure_path'], freq=pd.Timedelta(frame_delay, 'ms'), start=segment['start'], end=segment['end'])
 samples = pd.DatetimeIndex(floor.samples.time.values)
 pressure = floor.pressure
-cop = floor._cop_abs
+cop = floor.cop
 speed = floor.cop_speed.rolling(time=window, center=True).mean()
 delta_speed = floor.cop_delta_speed.rolling(time=window, center=True).mean()
 

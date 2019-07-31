@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from smartfloor import Floor
 from kinect import KinectRecording
+from matplotlib.gridspec import GridSpec
 import sys
 from scipy.signal import argrelmin, argrelmax
 import xarray.ufuncs as xu
@@ -69,12 +70,17 @@ def update_fig(i):
     cop_dot[0].set_data(x, y)
     cop_dot[0].set_markersize(10 * mag / cop.magnitude.max(dim='time'))
 
+    """ VERTICAL PLOT """
+    scrub_line_v.set_data([0, 1], [dt, dt])
+
 
 """ SET UP GRID LAYOUT """
-fig = plt.figure()
-ax1 = plt.subplot2grid((2, 2), (0, 0))
-ax2 = plt.subplot2grid((2, 2), (0, 1))
-ax3 = plt.subplot2grid((2, 2), (1, 0), colspan=2)
+fig = plt.figure(figsize=(13, 7))
+gridspec = GridSpec(2, 3, width_ratios=[3, 3, 1], height_ratios=[2, 1])
+ax1 = fig.add_subplot(gridspec.new_subplotspec((0, 0), rowspan=1, colspan=1))
+ax2 = fig.add_subplot(gridspec.new_subplotspec((0, 1), rowspan=1, colspan=1))
+ax3 = fig.add_subplot(gridspec.new_subplotspec((1, 0), rowspan=1, colspan=2))
+ax4 = fig.add_subplot(gridspec.new_subplotspec((0, 2), rowspan=2, colspan=1))
 
 """ INIT PLOTS """
 try:
@@ -91,9 +97,8 @@ ax2.set_axis_off()
 ax2.set_title('')
 ax2.invert_yaxis()
 ax2.set_aspect('equal', adjustable='box')
-plt.xticks(size=6, rotation='horizontal', ha='center')  # Smaller timestamp labels
 plt.tight_layout(pad=0.4, w_pad=0.5)
-update_fig(0)
+ax3.set_xticklabels(ax3.get_xticklabels(), ha='center', rotation='horizontal', size=6)
 
 
 def onclick(event):
@@ -138,28 +143,19 @@ ax2.scatter(lefts.x, lefts.y, c='green')
 """ PLOT THE WALK LINE """
 start_mid, end_mid = floor.walk_line
 ax2.plot([start_mid.x, end_mid.x], [start_mid.y, end_mid.y], c='r')
-walk_length = LA.norm((end_mid - start_mid).to_array())
-norm_walk = (end_mid - start_mid) / walk_length
 
-rot_matrix = np.array([[norm_walk.x.item(), (-norm_walk.y).item()],
-                       [norm_walk.y.item(), norm_walk.x.item()]])
+cop_mlap = floor.cop_mlap
+cop_vel_mlap = floor.cop_vel_mlap
+ax4.plot(cop_mlap.med, cop_mlap.time.values)
+ax4.plot(cop_vel_mlap.med / 5, cop_vel_mlap.time.values)
+ax4.axvline(0, c='k')
+ax4.axis(ymin=samples[0], ymax=samples[-1])
+ax4.set_xticklabels(ax4.get_xticklabels(), ha='center', rotation='horizontal', size=6)
+ax4.set_yticklabels(ax4.get_yticklabels(), va='center', rotation='vertical', size=6)
+ax4.set_axis_off()
+scrub_line_v = ax4.axhline(samples[0], c='r')
 
-rot_matrix2 = np.array([[(-norm_walk.y).item(), (-norm_walk.x).item()],
-                       [norm_walk.x.item(), (-norm_walk.y).item()]])
+for step_time in steps.time.values:
+    ax4.axhline(step_time, c='k', linestyle='--')
 
-# reoriented = (floor.footsteps[['x', 'y']] - start_mid).to_array().values.T @ rot_matrix2.T
-# v_midline = (end_mid - start_mid).to_array()
-# reoriented2 = np.cross(v_midline, floor.footsteps[['x','y']].to_array().T - start_mid.to_array()) / walk_length
-
-
-def ml(varr):
-    v_midline = (end_mid - start_mid).to_array()
-    return np.cross(v_midline, varr) / LA.norm(v_midline)
-
-
-def ap(varr):
-    v_midline = (end_mid - start_mid).to_array()
-    return v_midline.dot(varr) / LA.norm(v_midline)
-
-
-mlap_cop = floor._to_mlap(cop - start_mid)
+update_fig(0)

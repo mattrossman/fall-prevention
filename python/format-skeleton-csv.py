@@ -78,6 +78,11 @@ def create_time_array(data):
     return time_array
 
 
+def write_to_json(df):
+    with open('walk_segment_1.json', 'w') as f:
+        f.write(df.to_json())
+
+
 data = parse_data('data/skeleton.csv')
 kf_array = []
 for time in data:
@@ -115,14 +120,13 @@ for i in range(num_bones):
             # pretty sure the scale is always 1 or close to 1
 
 
-ac = pd.DataFrame()  # ac = AnimationClip
+ac = pd.DataFrame(tracks)  # ac = AnimationClip
 
-ac['duration'] = (float(data[len(data) - 1][2]) - float(data[0][2])) / 1000.00  # seconds
-ac['name'] = 'walk_segment_1'
-ac['tracks'] = tracks
-ac['uuid'] = '???'
+# ac['duration'] = (float(data[len(data) - 1][2]) - float(data[0][2])) / 1000.00  # seconds
+# ac['name'] = 'walk_segment_1'
+# ac['bones'] = tracks
+# ac['uuid'] = '???'
+
+write_to_json(ac)
 
 
-def write_to_json():
-    with open('walk_segment_1.json', 'w') as f:
-        f.write(ac.to_json(orient='records'))

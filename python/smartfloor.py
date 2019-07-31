@@ -335,15 +335,23 @@ class Floor:
         end = footsteps.isel(time=slice(-2,None)).mean('time')
         return start[['x', 'y']], end[['x', 'y']]
 
-    def reorient(self, ds: xr.Dataset):
+    def _to_mlap(self, ds: xr.Dataset):
         """Convert x, y positions to mediolateral, anteroposterior positions along walk line
 
         Returns
         -------
         ds: xr.Dataset
-            Dataset containing (med, ant) data variables corresponding to the old (x, y) coordinates
+            Dataset containing (med, ant) data variables, with the origin at the start of the walk line
         """
         start, end = self.walk_line
+        v_line = end - start
+        line_length = np.linalg.norm((end - start).to_array())
+        line_norm = v_line / line_length
+        rot_matrix = np.array([[(-line_norm.y).item(), (-line_norm.x).item()],
+                               [line_norm.x.item(), (-line_norm.y).item()]])
+        rotated = ds[['x', 'y']].to_array().values.T @ rot_matrix.T
+        med, ant = rotated.T
+        return xr.Dataset({'med': (['time'], med), 'ant': (['time'], ant)},  {'time': ds.time})
 
 
 

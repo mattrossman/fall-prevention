@@ -147,6 +147,19 @@ rot_matrix = np.array([[norm_walk.x.item(), (-norm_walk.y).item()],
 rot_matrix2 = np.array([[(-norm_walk.y).item(), (-norm_walk.x).item()],
                        [norm_walk.x.item(), (-norm_walk.y).item()]])
 
-reoriented = (floor.footsteps[['x', 'y']] - start_mid).to_array().values.T @ rot_matrix2.T
-v_midline = (end_mid - start_mid).to_array()
-reoriented2 = np.cross(v_midline, floor.footsteps[['x','y']].to_array().T - start_mid.to_array()) / walk_length
+# reoriented = (floor.footsteps[['x', 'y']] - start_mid).to_array().values.T @ rot_matrix2.T
+# v_midline = (end_mid - start_mid).to_array()
+# reoriented2 = np.cross(v_midline, floor.footsteps[['x','y']].to_array().T - start_mid.to_array()) / walk_length
+
+
+def ml(varr):
+    v_midline = (end_mid - start_mid).to_array()
+    return np.cross(v_midline, varr) / LA.norm(v_midline)
+
+
+def ap(varr):
+    v_midline = (end_mid - start_mid).to_array()
+    return v_midline.dot(varr) / LA.norm(v_midline)
+
+
+mlap_cop = floor._to_mlap(cop - start_mid)

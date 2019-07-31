@@ -133,3 +133,7 @@ lefts = cop.sel(time=steps.dir[steps.dir == 'left'].time)
 
 ax2.scatter(rights.x, rights.y, c='yellow')
 ax2.scatter(lefts.x, lefts.y, c='green')
+
+""" PLOT THE WALK LINE """
+start_mid, end_mid = floor.walk_line
+ax2.plot(*zip(start_mid, end_mid), c='r')

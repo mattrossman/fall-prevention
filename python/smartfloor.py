@@ -268,7 +268,7 @@ class Floor:
     def _anchors(self):
         """Points along COP trajectory with minimal motion, good for marking a foot position
         """
-        cop_speed = self.cop_speed.rolling(time=10, center=True).mean()
+        cop_speed = self.cop_speed.rolling(time=10, center=True).mean().dropna('time')
         ixs = argrelmin(cop_speed.values, order=3)[0]
         return cop_speed.isel(time=ixs)
 
@@ -276,13 +276,13 @@ class Floor:
     def _weight_shifts(self):
         """ Points of highest velocity increase
         """
-        cop_delta_speed = self.cop_delta_speed.rolling(time=10, center=True).mean()
+        cop_delta_speed = self.cop_delta_speed.rolling(time=10, center=True).mean().dropna('time')
         ixs = argrelmax(cop_delta_speed.values, order=3)[0]
         return cop_delta_speed.isel(time=ixs)
 
     @property
     def footsteps(self):
-        """A valid step marker is an anchor immediately followed by a motion spike
+        """Positions of valid foot anchors along with their left/right labeling
         """
         ds = xr.Dataset({'anchors': self._anchors, 'motions': self._weight_shifts[self._weight_shifts > 3]})
         valid_anchors = xu.logical_and(ds.anchors.notnull(), ds.motions.shift(time=-1).notnull())
@@ -309,8 +309,32 @@ class Floor:
         step3 = cycle.isel(window=2)
         v_step = np.array([step2.x - step1.x, step2.y - step1.y])
         v_stride = np.array([step3.x - step1.x, step3.y - step1.y])
-        dot = v_step[0] * -v_stride[1] + v_step[1] * v_stride[0]
-        return 'right' if dot > 0 else 'left'
+        # Dot product of v_step and 90CCW rotation of v_stride
+        dir = v_step[0] * -v_stride[1] + v_step[1] * v_stride[0]
+        return 'right' if dir > 0 else 'left'
+
+    @property
+    def gait_cycles(self):
+        """Groups of 3 footsteps, starting and ending on the right foot
+        """
+        footsteps = self.footsteps
+        gait_cycles = footsteps.rolling(time=3).construct('window').dropna('time').groupby('time')
+        return filter(lambda tup: tup[1].dir[0] == 'right', gait_cycles)
+
+    @property
+    def walk_line(self):
+        """The overall straight trajectory of the subject
+
+        Returns
+        -------
+        start: Tuple[float, float]
+        end: Tuple[float, float]
+        """
+        footsteps = self.footsteps
+        start = footsteps.isel(time=slice(None,2)).mean('time')
+        end = footsteps.isel(time=slice(-2,None)).mean('time')
+        return (start.x.item(), start.y.item()), (end.x.item(), end.y.item())
+
 
     def trim(self, start, end):
         """[DEPRECATED] Trim the time dimension of the data array

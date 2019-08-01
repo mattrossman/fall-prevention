@@ -292,7 +292,7 @@ class Floor:
     @staticmethod
     def _step_dirs(steps: xr.Dataset):
         gait_cycles = steps.rolling(time=3).construct('window').dropna('time').groupby('time')
-        feet = xr.DataArray([Floor._starting_foot(sl) for _, sl in gait_cycles], dims='time',
+        feet = xr.DataArray([Floor._middle_foot_dir(sl) for _, sl in gait_cycles], dims='time',
                             coords={'time': steps.time[1:-1]})
         # Assume first and last steps follow typical alternation
         feet = feet.reindex_like(steps)
@@ -301,7 +301,7 @@ class Floor:
         return feet
 
     @staticmethod
-    def _starting_foot(cycle: xr.Dataset):
+    def _middle_foot_dir(cycle: xr.Dataset):
         """Determine whether the middle foot in the cycle is a right or left foot
         """
         step1 = cycle.isel(window=0)
@@ -318,8 +318,9 @@ class Floor:
         """Groups of 3 footsteps, starting and ending on the right foot
         """
         footsteps = self.footsteps
-        gait_cycles = footsteps.rolling(time=3).construct('window').dropna('time').groupby('time')
-        return filter(lambda tup: tup[1].dir[0] == 'right', gait_cycles)
+        cycle_groups = footsteps.rolling(time=3).construct('window').dropna('time').groupby('time')
+        cycles = xr.concat(np.array(list(cycle_groups))[:, 1], 'cycle')
+        return cycles.where(cycles.isel(window=0).dir == 'right').dropna('cycle')
 
     @property
     def walk_line(self):

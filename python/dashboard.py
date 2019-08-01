@@ -1,14 +1,13 @@
-import pandas as pd
-import numpy as np
-from numpy import linalg as LA
-from matplotlib import animation
-from matplotlib.colors import LinearSegmentedColormap
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-from smartfloor import Floor
-from kinect import KinectRecording
-from matplotlib.gridspec import GridSpec
 import sys
+
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
+import pandas as pd
+from matplotlib import animation
+from matplotlib.gridspec import GridSpec
+
+from kinect import KinectRecording
+from smartfloor import Floor
 
 walk_segments = [
     {

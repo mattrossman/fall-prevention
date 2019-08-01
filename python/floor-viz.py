@@ -1,11 +1,11 @@
 import pandas as pd
 from matplotlib import animation
 import matplotlib.pyplot as plt
-from smartfloor import Floor
+from smartfloor import FloorRecording
 import sys
 
 
-floor = Floor.from_csv('data/time-sync-walk-4.csv')
+floor = FloorRecording.from_csv('data/time-sync-walk-4.csv')
 lo, hi = floor.range()
 safe_range = pd.date_range(start=lo, end=hi, freq='40ms')
 

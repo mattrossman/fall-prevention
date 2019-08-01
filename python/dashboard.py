@@ -7,7 +7,7 @@ from matplotlib import animation
 from matplotlib.gridspec import GridSpec
 
 from kinect import KinectRecording
-from smartfloor import Floor
+from smartfloor import FloorRecording
 
 walk_segments = [
     {
@@ -43,7 +43,7 @@ smoothing = 10
 frame_delay = 1000/framerate_hz
 window = int(framerate_hz / 25 * smoothing)
 kr = KinectRecording(segment['rgb_path'])
-floor = Floor.from_csv(segment['pressure_path'], freq=pd.Timedelta(frame_delay, 'ms'), start=segment['start'], end=segment['end'])
+floor = FloorRecording.from_csv(segment['pressure_path'], freq=pd.Timedelta(frame_delay, 'ms'), start=segment['start'], end=segment['end'])
 samples = pd.DatetimeIndex(floor.samples.time.values)
 
 """ CACHE SOME VARIABLES """
@@ -111,6 +111,7 @@ ax2.plot([start_mid.x, end_mid.x], [start_mid.y, end_mid.y], c='r')
 
 # BOTTOM
 floor.cop_speed.plot(ax=ax3)
+cop.magnitude.plot(ax=ax3)
 scrub_line = ax3.axvline(samples[0], c='r')
 for step_time in steps.time.values:
     ax3.axvline(step_time, c='k', linestyle='--')

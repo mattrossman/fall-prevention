@@ -8,7 +8,7 @@ from scipy.signal import argrelmin, argrelmax
 from typing import List, Tuple
 
 
-class Board:
+class BoardRecording:
     """A single board on the SmartFloor
 
     Attributes
@@ -77,7 +77,7 @@ class Board:
             axis 1: columns of the board
             axis 2: time
         """
-        return np.array([[self.df[sensor_id] for sensor_id in row] for row in Board.sensor_map])
+        return np.array([[self.df[sensor_id] for sensor_id in row] for row in BoardRecording.sensor_map])
 
     def get_darray(self) -> xr.DataArray:
         """Build a DataArray from the current DataFrame data
@@ -116,14 +116,14 @@ class Board:
         return board_hz
 
 
-class Floor:
+class FloorRecording:
     """A strip of SmartFloor boards
 
     Attributes
     ----------
     df : pandas.DataFrame
         Raw SmartFloor recording
-    boards : List[Board]
+    boards : List[BoardRecording]
         Board objects that make up the floor, in left to right order
     da : xarray.DataArray
         Interpolated mapping of all sensor readings with x, y, and time dimensions
@@ -145,9 +145,9 @@ class Floor:
             Raw SmartFloor recording
         """
         self.df = df
-        self.boards = [Board(df, board_id, x * Board.width, 0)
-                       for (x, board_id) in enumerate(Floor.board_map)]
-        all_start, all_end = Floor._range(self.boards)
+        self.boards = [BoardRecording(df, board_id, x * BoardRecording.width, 0)
+                       for (x, board_id) in enumerate(FloorRecording.board_map)]
+        all_start, all_end = FloorRecording._range(self.boards)
         self.freq = pd.Timedelta(freq)
         start = start or all_start
         end = end or all_end
@@ -158,7 +158,7 @@ class Floor:
 
     @staticmethod
     def from_csv(path, *args,**kwargs):
-        return Floor(_df_from_csv(path), *args, **kwargs)
+        return FloorRecording(_df_from_csv(path), *args, **kwargs)
 
     @staticmethod
     def _range(boards) -> Tuple[datetime, datetime]:
@@ -287,12 +287,12 @@ class Floor:
         ds = xr.Dataset({'anchors': self._anchors, 'motions': self._weight_shifts[self._weight_shifts > 3]})
         valid_anchors = xu.logical_and(ds.anchors.notnull(), ds.motions.shift(time=-1).notnull())
         steps = self.cop.sel(time=ds.anchors[valid_anchors].time)
-        return steps.assign(dir=self._step_dirs(steps))
+        return steps.assign(dir=FloorRecording._step_dirs(steps))
 
     @staticmethod
     def _step_dirs(steps: xr.Dataset):
         gait_cycles = steps.rolling(time=3).construct('window').dropna('time').groupby('time')
-        feet = xr.DataArray([Floor._middle_foot_dir(sl) for _, sl in gait_cycles], dims='time',
+        feet = xr.DataArray([FloorRecording._middle_foot_dir(sl) for _, sl in gait_cycles], dims='time',
                             coords={'time': steps.time[1:-1]})
         # Assume first and last steps follow typical alternation
         feet = feet.reindex_like(steps)
@@ -384,3 +384,27 @@ def _df_from_csv(path) -> pd.DataFrame:
 
 def _nonnegative_darray(da: xr.DataArray):
     return da.where(da > 0).fillna(0)
+
+
+class FloorBatch:
+    def __init__(self, floors):
+        self.floors = floors
+
+    @staticmethod
+    def from_csv(paths: List[str], bounds: List[Tuple[datetime, datetime]] = None):
+        """Create a batch of floor recordings from a list of .csv file paths
+
+        Parameters
+        ----------
+        paths : List[str]
+            File paths to the raw smartfloor .csv recordings
+        bounds: List[Tuple[datetime, datetime]] (optional)
+
+
+        Returns
+        -------
+        FloorBatch
+        """
+        return FloorBatch(floors=[FloorRecording.from_csv(path, start=start, end=end)
+                                  for path in paths for start, end in bounds])
+

@@ -1,11 +1,11 @@
 # Using NumPy style docstrings
-import pandas as pd
-import numpy as np
-import xarray as xr
-import xarray.ufuncs as xu
 from datetime import datetime
-from scipy.signal import argrelmin, argrelmax
 from typing import List, Tuple
+
+import numpy as np
+import pandas as pd
+import xarray as xr
+from scipy.signal import argrelmin, argrelmax
 
 
 class BoardRecording:
@@ -183,7 +183,7 @@ class FloorRecording:
         darray : xarray.DataArray
             Readings for the entire floor with x, y, and time dimensions
         """
-        da = xr.DataArray(xr.concat([board.da for board in self.boards], dim='x'))
+        da = xr.concat([board.da for board in self.boards], dim='x')
         return _nonnegative_darray(da.interpolate_na(dim='time', method='linear').dropna(dim='time'))
 
     @staticmethod
@@ -242,27 +242,27 @@ class FloorRecording:
     @property
     def cop_vel(self):
         cop = self.cop
-        return (cop - cop.shift(time=1)) / (self.freq / pd.Timedelta('1s'))
+        return (cop.shift(time=-1) - cop) / (self.freq / pd.Timedelta('1s'))
 
     @property
     def cop_speed(self):
         vel = self.cop_vel
-        return xu.sqrt(xu.square(vel.x) + xu.square(vel.y))
+        return np.sqrt(np.square(vel.x) + np.square(vel.y))
 
     @property
     def cop_delta_speed(self):
         speed = self.cop_speed
-        return (speed - speed.shift(time=1)) / (self.freq / pd.Timedelta('1s'))
+        return (speed.shift(time=-1) - speed) / (self.freq / pd.Timedelta('1s'))
 
     @property
     def cop_accel(self):
         vel = self.cop_vel
-        return (vel - vel.shift(time=1)) / (self.freq / pd.Timedelta('1s'))
+        return (vel.shift(time=-1) - vel) / (self.freq / pd.Timedelta('1s'))
     
     @property
     def cop_accel_scalar(self):
         accel = self.cop_accel
-        return xu.sqrt(xu.square(accel.x) + xu.square(accel.y))
+        return np.sqrt(np.square(accel.x) + np.square(accel.y))
 
     @property
     def _anchors(self):
@@ -285,7 +285,7 @@ class FloorRecording:
         """Positions of valid foot anchors along with their left/right labeling
         """
         ds = xr.Dataset({'anchors': self._anchors, 'motions': self._weight_shifts[self._weight_shifts > 3]})
-        valid_anchors = xu.logical_and(ds.anchors.notnull(), ds.motions.shift(time=-1).notnull())
+        valid_anchors = np.logical_and(ds.anchors.notnull(), ds.motions.shift(time=-1).notnull())
         steps = self.cop.sel(time=ds.anchors[valid_anchors].time)
         return steps.assign(dir=FloorRecording._step_dirs(steps))
 

@@ -245,30 +245,49 @@ class FloorRecording:
         return (cop.shift(time=-1) - cop).rolling(time=2).mean() / (self.freq / pd.Timedelta('1s'))
 
     @property
-    def cop_speed(self):
+    def cop_vel_mag(self):
         vel = self.cop_vel
         return np.sqrt(np.square(vel.x) + np.square(vel.y))
 
     @property
-    def cop_delta_speed(self):
-        speed = self.cop_speed
+    def cop_vel_mag_roc(self):
+        """Rate of change of velocity magnitude (change in speed, change in acceleration in direction of motion"""
+        speed = self.cop_vel_mag
         return (speed.shift(time=-1) - speed).rolling(time=2).mean() / (self.freq / pd.Timedelta('1s'))
 
     @property
     def cop_accel(self):
         vel = self.cop_vel
         return (vel.shift(time=-1) - vel).rolling(time=2).mean() / (self.freq / pd.Timedelta('1s'))
-    
+
     @property
-    def cop_accel_scalar(self):
+    def cop_accel_mag(self):
+        """Magnitude of the COP acceleration vector"""
         accel = self.cop_accel
         return np.sqrt(np.square(accel.x) + np.square(accel.y))
+
+    @property
+    def cop_accel_mag_roc(self):
+        """Rate of change of velocity magnitude (change in speed, change in acceleration in direction of motion"""
+        accel_mag = self.cop_accel_mag
+        return (accel_mag.shift(time=-1) - accel_mag).rolling(time=2).mean() / (self.freq / pd.Timedelta('1s'))
+
+    @property
+    def cop_jerk(self):
+        vel = self.cop_vel
+        return (vel.shift(time=-1) - vel).rolling(time=2).mean() / (self.freq / pd.Timedelta('1s'))
+
+    @property
+    def cop_jerk_mag(self):
+        jerk = self.cop_jerk
+        return np.sqrt(np.square(jerk.x) + np.square(jerk.y))
+
 
     @property
     def _anchors(self):
         """Points along COP trajectory with minimal motion, good for marking a foot position
         """
-        cop_speed = self.cop_speed.rolling(time=10, center=True).mean().dropna('time')
+        cop_speed = self.cop_vel_mag.rolling(time=10, center=True).mean().dropna('time')
         ixs = argrelmin(cop_speed.values, order=3)[0]
         return cop_speed.isel(time=ixs)
 
@@ -276,7 +295,7 @@ class FloorRecording:
     def _weight_shifts(self):
         """ Points of highest velocity increase
         """
-        cop_delta_speed = self.cop_delta_speed.rolling(time=10, center=True).mean().dropna('time')
+        cop_delta_speed = self.cop_vel_mag_roc.rolling(time=10, center=True).mean().dropna('time')
         ixs = argrelmax(cop_delta_speed.values, order=3)[0]
         return cop_delta_speed.isel(time=ixs)
 

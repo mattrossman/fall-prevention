@@ -49,8 +49,8 @@ samples = pd.DatetimeIndex(floor.samples.time.values)
 """ CACHE SOME VARIABLES """
 pressure = floor.pressure
 cop = floor.cop
-speed = floor.cop_speed.rolling(time=window, center=True).mean()
-delta_speed = floor.cop_delta_speed.rolling(time=window, center=True).mean()
+speed = floor.cop_vel_mag.rolling(time=window, center=True).mean()
+delta_speed = floor.cop_vel_mag_roc.rolling(time=window, center=True).mean()
 steps = floor.footsteps
 cop_mlap = floor.cop_mlap
 cop_vel_mlap = floor.cop_vel_mlap
@@ -110,8 +110,11 @@ start_mid, end_mid = floor.walk_line
 ax2.plot([start_mid.x, end_mid.x], [start_mid.y, end_mid.y], c='r')
 
 # BOTTOM
-floor.cop_speed.plot(ax=ax3)
-cop.magnitude.plot(ax=ax3)
+floor.cop_vel_mag.plot(ax=ax3)
+(floor.cop_vel_mag_roc / 20).plot(ax=ax3)
+(floor.cop_accel_mag_roc / 100).rolling(time=3, center=True).mean().plot(ax=ax3)
+# cop.magnitude.plot(ax=ax3)
+(floor.cop_vel.magnitude / 10).rolling(time=15, center=True).mean().plot(ax=ax3)
 scrub_line = ax3.axvline(samples[0], c='r')
 for step_time in steps.time.values:
     ax3.axvline(step_time, c='k', linestyle='--')
@@ -144,6 +147,15 @@ def onclick(event):
             update_fig(i)
 
 
+def onkeypress(event):
+    dt = scrub_line.get_data()[0][0]
+    i = samples.get_loc(dt, method='nearest')
+    if event.key == "left":
+        update_fig(i - 1)
+    elif event.key == "right":
+        update_fig(i + 1)
+
+
 def update_frame(i):
     print(f'\rProgress: {i}/{samples.size}', end='')
     update_fig(i)
@@ -159,5 +171,6 @@ def animate(path=None):
         ani.save(path, writer=writer)
 
 
-cid = fig.canvas.mpl_connect('button_press_event', onclick)
+key_event_id = fig.canvas.mpl_connect('key_press_event', onkeypress)
+click_event_id = fig.canvas.mpl_connect('button_press_event', onclick)
 update_fig(0)

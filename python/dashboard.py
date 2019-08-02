@@ -35,7 +35,7 @@ walk_segments = [
         'end': '2019-07-19 22:56:21'
     }
 ]
-segment = walk_segments[0]
+segment = walk_segments[3]
 
 """ SET UP SOURCE DATA """
 framerate_hz = 25
@@ -51,7 +51,7 @@ pressure = floor.pressure
 cop = floor.cop
 speed = floor.cop_vel_mag.rolling(time=window, center=True).mean()
 delta_speed = floor.cop_vel_mag_roc.rolling(time=window, center=True).mean()
-steps = floor.footsteps
+steps = floor.footstep_positions
 cop_mlap = floor.cop_mlap
 cop_vel_mlap = floor.cop_vel_mlap
 
@@ -112,11 +112,12 @@ ax2.plot([start_mid.x, end_mid.x], [start_mid.y, end_mid.y], c='r')
 # BOTTOM
 floor.cop_vel_mag.plot(ax=ax3)
 (floor.cop_vel_mag_roc / 20).plot(ax=ax3)
-scrub_line = ax3.axvline(samples[0], c='r')
+(floor.cop_accel_mag_roc / 100).rolling(time=10).mean().plot(ax=ax3)
+scrub_line = ax3.axvline(samples[0], c='k')
 for step_time in steps.time.values:
-    ax3.axvline(step_time, c='r', linestyle=':')
-for strike_time in floor._heelstrikes.time.values:
-    ax3.axvline(strike_time, c='k', linestyle='--')
+    ax3.axvline(step_time, c='gray', linestyle=':')
+for strike in floor._heelstrikes.dir:
+    ax3.axvline(strike.time.values, c=('r' if strike.item() == 'right' else 'b'), linestyle='--')
 plt.setp(ax3.xaxis.get_majorticklabels(), rotation='horizontal', ha='center', size=6)
 
 # VERTICAL
@@ -126,10 +127,10 @@ ax4.axvline(0, c='k')
 ax4.axis(ymin=samples[0], ymax=samples[-1])
 plt.setp(ax4.yaxis.get_majorticklabels(), rotation='vertical', va='center', size=6)
 # ax4.set_axis_off()
-scrub_line_v = ax4.axhline(samples[0], c='r')
+scrub_line_v = ax4.axhline(samples[0], c='k')
 
 for step_time in steps.time.values:
-    ax4.axhline(step_time, c='k', linestyle='--')
+    ax4.axhline(step_time, c='gray', linestyle=':')
 
 
 plt.tight_layout(pad=0, w_pad=0.4)

@@ -297,17 +297,20 @@ class FloorRecording:
         """
         cop_delta_speed = self.cop_vel_mag_roc.rolling(time=3, center=True).mean().dropna('time')
         ixs = argrelmax(cop_delta_speed.values, order=3)[0]
-        return cop_delta_speed.isel(time=ixs)
+        speed_shifts = cop_delta_speed.isel(time=ixs)
+        return speed_shifts[speed_shifts > 3]
 
     @property
     def _heelstrikes(self):
-        return self._weight_shifts[self._weight_shifts > 3]
+        heel_dir = self.footstep_positions.reindex_like(self._weight_shifts, method='bfill')
+        heel_dir = heel_dir.fillna(heel_dir.shift(time=2))  # Assume feet alternation
+        return heel_dir.where(heel_dir != heel_dir.shift(time=1)).dropna('time')  # Disallow repeated values
 
     @property
-    def footsteps(self):
+    def footstep_positions(self):
         """Positions of valid foot anchors along with their left/right labeling
         """
-        ds = xr.Dataset({'anchors': self._anchors, 'heels': self._heelstrikes})
+        ds = xr.Dataset({'anchors': self._anchors, 'heels': self._weight_shifts})
         valid_anchors = np.logical_and(ds.anchors.notnull(), ds.heels.shift(time=-1).notnull())
         steps = self.cop.sel(time=ds.anchors[valid_anchors].time)
         return steps.assign(dir=FloorRecording._step_dirs(steps))
@@ -319,9 +322,7 @@ class FloorRecording:
                             coords={'time': steps.time[1:-1]})
         # Assume first and last steps follow typical alternation
         feet = feet.reindex_like(steps)
-        feet[0] = 'left' if feet[1].item() == 'right' else 'right'
-        feet[-1] = 'left' if feet[-2].item() == 'right' else 'right'
-        return feet
+        return feet.fillna(feet.shift(time=2)).fillna(feet.shift(time=-2))
 
     @staticmethod
     def _middle_foot_dir(cycle: xr.Dataset):
@@ -337,10 +338,19 @@ class FloorRecording:
         return 'right' if dir > 0 else 'left'
 
     @property
+    def footstep_cycles(self):
+        """Groups of 3 footsteps, starting and ending on the right foot
+        """
+        footsteps = self.footstep_positions
+        cycle_groups = footsteps.rolling(time=3).construct('window').dropna('time').groupby('time')
+        cycles = xr.concat(np.array(list(cycle_groups))[:, 1], 'cycle')
+        return cycles.where(cycles.isel(window=0).dir == 'right').dropna('cycle')
+
+    @property
     def gait_cycles(self):
         """Groups of 3 footsteps, starting and ending on the right foot
         """
-        footsteps = self.footsteps
+        footsteps = self.footstep_positions
         cycle_groups = footsteps.rolling(time=3).construct('window').dropna('time').groupby('time')
         cycles = xr.concat(np.array(list(cycle_groups))[:, 1], 'cycle')
         return cycles.where(cycles.isel(window=0).dir == 'right').dropna('cycle')
@@ -354,7 +364,7 @@ class FloorRecording:
         start: xarray.Dataset
         end: xarray.Dataset
         """
-        footsteps = self.footsteps
+        footsteps = self.footstep_positions
         start = footsteps.isel(time=slice(None,2)).mean('time')
         end = footsteps.isel(time=slice(-2,None)).mean('time')
         return start[['x', 'y']], end[['x', 'y']]

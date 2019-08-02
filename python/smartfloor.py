@@ -242,7 +242,7 @@ class FloorRecording:
     @property
     def cop_vel(self):
         cop = self.cop
-        return (cop.shift(time=-1) - cop) / (self.freq / pd.Timedelta('1s'))
+        return (cop.shift(time=-1) - cop).rolling(time=2).mean() / (self.freq / pd.Timedelta('1s'))
 
     @property
     def cop_speed(self):
@@ -252,12 +252,12 @@ class FloorRecording:
     @property
     def cop_delta_speed(self):
         speed = self.cop_speed
-        return (speed.shift(time=-1) - speed) / (self.freq / pd.Timedelta('1s'))
+        return (speed.shift(time=-1) - speed).rolling(time=2).mean() / (self.freq / pd.Timedelta('1s'))
 
     @property
     def cop_accel(self):
         vel = self.cop_vel
-        return (vel.shift(time=-1) - vel) / (self.freq / pd.Timedelta('1s'))
+        return (vel.shift(time=-1) - vel).rolling(time=2).mean() / (self.freq / pd.Timedelta('1s'))
     
     @property
     def cop_accel_scalar(self):

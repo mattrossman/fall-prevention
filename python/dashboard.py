@@ -112,12 +112,11 @@ ax2.plot([start_mid.x, end_mid.x], [start_mid.y, end_mid.y], c='r')
 # BOTTOM
 floor.cop_vel_mag.plot(ax=ax3)
 (floor.cop_vel_mag_roc / 20).plot(ax=ax3)
-(floor.cop_accel_mag_roc / 100).rolling(time=3, center=True).mean().plot(ax=ax3)
-# cop.magnitude.plot(ax=ax3)
-(floor.cop_vel.magnitude / 10).rolling(time=15, center=True).mean().plot(ax=ax3)
 scrub_line = ax3.axvline(samples[0], c='r')
 for step_time in steps.time.values:
-    ax3.axvline(step_time, c='k', linestyle='--')
+    ax3.axvline(step_time, c='r', linestyle=':')
+for strike_time in floor._heelstrikes.time.values:
+    ax3.axvline(strike_time, c='k', linestyle='--')
 plt.setp(ax3.xaxis.get_majorticklabels(), rotation='horizontal', ha='center', size=6)
 
 # VERTICAL

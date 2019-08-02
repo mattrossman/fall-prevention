@@ -293,18 +293,22 @@ class FloorRecording:
 
     @property
     def _weight_shifts(self):
-        """ Points of highest velocity increase
+        """ Points of highest speed increase
         """
-        cop_delta_speed = self.cop_vel_mag_roc.rolling(time=10, center=True).mean().dropna('time')
+        cop_delta_speed = self.cop_vel_mag_roc.rolling(time=3, center=True).mean().dropna('time')
         ixs = argrelmax(cop_delta_speed.values, order=3)[0]
         return cop_delta_speed.isel(time=ixs)
+
+    @property
+    def _heelstrikes(self):
+        return self._weight_shifts[self._weight_shifts > 3]
 
     @property
     def footsteps(self):
         """Positions of valid foot anchors along with their left/right labeling
         """
-        ds = xr.Dataset({'anchors': self._anchors, 'motions': self._weight_shifts[self._weight_shifts > 3]})
-        valid_anchors = np.logical_and(ds.anchors.notnull(), ds.motions.shift(time=-1).notnull())
+        ds = xr.Dataset({'anchors': self._anchors, 'heels': self._heelstrikes})
+        valid_anchors = np.logical_and(ds.anchors.notnull(), ds.heels.shift(time=-1).notnull())
         steps = self.cop.sel(time=ds.anchors[valid_anchors].time)
         return steps.assign(dir=FloorRecording._step_dirs(steps))
 

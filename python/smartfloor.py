@@ -8,6 +8,17 @@ import xarray as xr
 from scipy.signal import argrelmin, argrelmax
 
 
+def _df_from_csv(path) -> pd.DataFrame:
+    columns = ['board_id', 'time', *range(48)]  # column names
+    df_raw = pd.read_csv(path, engine='python', names=columns, index_col=1)
+    df_raw.index = pd.to_datetime(df_raw.index, unit='ms')
+    return df_raw
+
+
+def _nonnegative_darray(da: xr.DataArray):
+    return da.where(da > 0).fillna(0)
+
+
 class BoardRecording:
     """A single board on the SmartFloor
 
@@ -350,8 +361,8 @@ class FloorRecording:
     def gait_cycles(self):
         """Groups of 3 footsteps, starting and ending on the right foot
         """
-        footsteps = self.footstep_positions
-        cycle_groups = footsteps.rolling(time=3).construct('window').dropna('time').groupby('time')
+        heelstrikes = self._heelstrikes
+        cycle_groups = heelstrikes.rolling(time=3).construct('window').dropna('time').groupby('time')
         cycles = xr.concat(np.array(list(cycle_groups))[:, 1], 'cycle')
         return cycles.where(cycles.isel(window=0).dir == 'right').dropna('cycle')
 
@@ -406,17 +417,6 @@ class FloorRecording:
             The bounds to slice between, can be formatted as a string for pandas to parse
         """
         self.da = self.da.sel(time=slice(pd.Timestamp(start), pd.Timestamp(end)))
-
-
-def _df_from_csv(path) -> pd.DataFrame:
-    columns = ['board_id', 'time', *range(48)]  # column names
-    df_raw = pd.read_csv(path, engine='python', names=columns, index_col=1)
-    df_raw.index = pd.to_datetime(df_raw.index, unit='ms')
-    return df_raw
-
-
-def _nonnegative_darray(da: xr.DataArray):
-    return da.where(da > 0).fillna(0)
 
 
 class FloorBatch:

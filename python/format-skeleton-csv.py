@@ -79,11 +79,11 @@ def create_time_array(data):
 
 
 def write_to_json(df):
-    with open('walk_segment_1.json', 'w') as f:
+    with open('walk_segment_3.json', 'w') as f:
         f.write(df.to_json())
 
 
-data = parse_data('data/skeleton.csv')
+data = parse_data('data/skeleton3.csv')
 kf_array = []
 for time in data:
     kf = dict(names=time[3:328:13], tracked=list(map(check_tracked, time[4:329:13])),

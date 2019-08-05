@@ -15,14 +15,14 @@
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/material-design-iconic-font/2.2.0/css/material-design-iconic-font.min.css">
         <link rel="stylesheet" href="css/navbar.css">
         <link rel="stylesheet" href="css/switch.css">
-        <link rel="stylesheet" href="css/threejs.css">
+        <link rel="stylesheet" href="css/cntl.css">
 
         <title>Hello, world!</title>
 
     </head>
     <body>
         <div id="viewport">
-            <!-- Sidebar -->
+            <!-- Left sidebar -->
             <div id="sidebar">
                 <header>
                     <a href="#">Fall prevention</a>
@@ -31,6 +31,9 @@
                     <!-- Sidebar entries go here -->
                 </ul>
             </div>
+            <!-- Right sidebar -->
+            <div id="slider"></div>
+            <!-- <button id='trigger'>Trigger</button> -->
             <div id="content">
                 <!-- Top navigation bar -->
                 <nav class="navbar navbar-default">
@@ -47,7 +50,7 @@
                 <div class="container-fluid">
                     <!-- Main content goes here -->
                     
-                    <h1>Hello, world!</h1>
+                    <h1>Gait Parameters</h1>
 
                     <div id="plot">
                     </div>                    
@@ -65,6 +68,8 @@
         <script src="js/switch.js"></script>
         <script src="js/three.min.js"></script>
         <script src="//cdn.rawgit.com/mrdoob/three.js/master/build/three.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/slideReveal/1.1.2/jquery.slidereveal.min.js"></script>
+        <script src="js/jquery.cntl.js"></script>
         <script src="script.js"></script>
         <script type="module" src="js/animation.js"></script>
     </body>

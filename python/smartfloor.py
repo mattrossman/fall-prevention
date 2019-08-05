@@ -293,7 +293,6 @@ class FloorRecording:
         jerk = self.cop_jerk
         return np.sqrt(np.square(jerk.x) + np.square(jerk.y))
 
-
     @property
     def _anchors(self):
         """Points along COP trajectory with minimal motion, good for marking a foot position
@@ -358,7 +357,7 @@ class FloorRecording:
         return cycles.where(cycles.isel(window=0).dir == 'right').dropna('cycle')
 
     @property
-    def gait_cycles(self):
+    def step_triplets(self):
         """Groups of 3 footsteps, starting and ending on the right foot
         """
         heels = self._heelstrikes
@@ -368,10 +367,9 @@ class FloorRecording:
         return cycles.where(cycles.isel(window=0).dir == 'right').dropna('cycle')
 
     @property
-    def gait_cycle_windows(self):
+    def step_triplet_windows(self):
         return [(cycle.step_time[0].values, cycle.step_time[-1].values)
-                for _, cycle in self.gait_cycles.groupby('cycle')]
-
+                for _, cycle in self.step_triplets.groupby('cycle')]
 
     @property
     def walk_line(self):
@@ -413,7 +411,7 @@ class FloorRecording:
     @property
     def cop_mlap_cycles(self):
         ds = self.cop_mlap
-        return [ds.sel(time=slice(*w)) for w in self.gait_cycle_windows]
+        return [ds.sel(time=slice(*w)) for w in self.step_triplet_windows]
 
     @property
     def cop_vel_mlap(self):
@@ -422,9 +420,11 @@ class FloorRecording:
     @property
     def cop_vel_mlap_cycles(self):
         ds = self.cop_vel_mlap
-        return [ds.sel(time=slice(*w)) for w in self.gait_cycle_windows]
+        return [ds.sel(time=slice(*w)) for w in self.step_triplet_windows]
 
-    # TODO: get gait cycle windows of MLAP COP velocity
+    @property
+    def gait_cycles(self):
+        return [GaitCycle(self, window) for window in self.step_triplet_windows]
 
     def trim(self, start, end):
         """[DEPRECATED] Trim the time dimension of the data array
@@ -436,6 +436,26 @@ class FloorRecording:
             The bounds to slice between, can be formatted as a string for pandas to parse
         """
         self.da = self.da.sel(time=slice(pd.Timestamp(start), pd.Timestamp(end)))
+
+
+class GaitCycle:
+    """Gait cycle normalized to a fixed number of samples"""
+    def __init__(self, floor, window):
+        self.floor = floor
+        self.range = pd.date_range(*window, periods=40)
+
+    @property
+    def cop_vel_mlap(self):
+        return self.floor.cop_vel_mlap.interp(time=self.range).drop('time')
+
+    @property
+    def cop_mlap(self):
+        pos = self.floor.cop_mlap.interp(time=self.range).drop('time')
+        return pos - pos.isel(time=0)
+
+    @property
+    def duration(self):
+        return self.range[-1] - self.range[0]
 
 
 class FloorBatch:

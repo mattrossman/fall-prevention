@@ -361,10 +361,17 @@ class FloorRecording:
     def gait_cycles(self):
         """Groups of 3 footsteps, starting and ending on the right foot
         """
-        heelstrikes = self._heelstrikes
-        cycle_groups = heelstrikes.rolling(time=3).construct('window').dropna('time').groupby('time')
+        heels = self._heelstrikes
+        heels = heels.assign(step_time=heels.time)  # The time coordinates will not be so useful later
+        cycle_groups = heels.rolling(time=3).construct('window').dropna('time').groupby('time')
         cycles = xr.concat(np.array(list(cycle_groups))[:, 1], 'cycle')
         return cycles.where(cycles.isel(window=0).dir == 'right').dropna('cycle')
+
+    @property
+    def gait_cycle_windows(self):
+        return [(cycle.step_time[0].values, cycle.step_time[-1].values)
+                for _, cycle in self.gait_cycles.groupby('cycle')]
+
 
     @property
     def walk_line(self):
@@ -404,8 +411,20 @@ class FloorRecording:
         return self._to_mlap(self.cop - start)
 
     @property
+    def cop_mlap_cycles(self):
+        ds = self.cop_mlap
+        return [ds.sel(time=slice(*w)) for w in self.gait_cycle_windows]
+
+    @property
     def cop_vel_mlap(self):
         return self._to_mlap(self.cop_vel)
+
+    @property
+    def cop_vel_mlap_cycles(self):
+        ds = self.cop_vel_mlap
+        return [ds.sel(time=slice(*w)) for w in self.gait_cycle_windows]
+
+    # TODO: get gait cycle windows of MLAP COP velocity
 
     def trim(self, start, end):
         """[DEPRECATED] Trim the time dimension of the data array

@@ -442,20 +442,25 @@ class GaitCycle:
     """Gait cycle normalized to a fixed number of samples"""
     def __init__(self, floor, window):
         self.floor = floor
-        self.range = pd.date_range(*window, periods=40)
+        self.date_range = pd.date_range(*window, periods=40)
 
     @property
     def cop_vel_mlap(self):
-        return self.floor.cop_vel_mlap.interp(time=self.range).drop('time')
+        return self.floor.cop_vel_mlap.interp(time=self.date_range).drop('time')
 
     @property
     def cop_mlap(self):
-        pos = self.floor.cop_mlap.interp(time=self.range).drop('time')
+        pos = self.floor.cop_mlap.interp(time=self.date_range).drop('time')
         return pos - pos.isel(time=0)
 
     @property
     def duration(self):
-        return self.range[-1] - self.range[0]
+        return self.date_range[-1] - self.date_range[0]
+
+    @property
+    def features(self):
+        vel_mlap = self.cop_vel_mlap
+        return np.concatenate((vel_mlap.med, vel_mlap.ant))
 
 
 class FloorBatch:

@@ -1,23 +1,27 @@
 time_sync = [
     {
+        'name': 'tanner-normal',
         'pressure_path': 'data/time-sync-walk-1/smartfloor.csv',
         'rgb_path': 'data/time-sync-walk-1/rgb',
         'start': '2019-07-19T22:53:00',
         'end': '2019-07-19T22:53:04'
     },
     {
+        'name': 'tanner-slow',
         'pressure_path': 'data/time-sync-walk-2/smartfloor.csv',
         'rgb_path': 'data/time-sync-walk-2/Color',
         'start': '2019-07-19T22:53:43',
         'end': '2019-07-19T22:53:49'
     },
     {
+        'name': 'tanner-limp',
         'pressure_path': 'data/time-sync-walk-3.csv',
         'rgb_path': '',
         'start': '2019-07-19T22:54:17.36',
         'end': '2019-07-19T22:54:24.28'
     },
     {
+        'name': 'matt-limp',
         'pressure_path': 'data/time-sync-walk-4/smartfloor.csv',
         'rgb_path': 'data/time-sync-walk-4/Color',
         'start': '2019-07-19 22:56:10',

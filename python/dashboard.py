@@ -7,35 +7,10 @@ from matplotlib import animation
 from matplotlib.gridspec import GridSpec
 
 from kinect import KinectRecording
-from smartfloor import Floor
+from smartfloor import FloorRecording
+from segments import time_sync as walk_segments
 
-walk_segments = [
-    {
-        'pressure_path': 'data/time-sync-walk-1/smartfloor.csv',
-        'rgb_path': 'data/time-sync-walk-1/rgb',
-        'start': '2019-07-19T22:53:00',
-        'end': '2019-07-19T22:53:04'
-    },
-    {
-        'pressure_path': 'data/time-sync-walk-2/smartfloor.csv',
-        'rgb_path': 'data/time-sync-walk-2/Color',
-        'start': '2019-07-19T22:53:43',
-        'end': '2019-07-19T22:53:49'
-    },
-    {
-        'pressure_path': 'data/time-sync-walk-3.csv',
-        'rgb_path': '',
-        'start': '2019-07-19T22:54:17.36',
-        'end': '2019-07-19T22:54:24.28'
-    },
-    {
-        'pressure_path': 'data/time-sync-walk-4/smartfloor.csv',
-        'rgb_path': 'data/time-sync-walk-4/Color',
-        'start': '2019-07-19 22:56:10',
-        'end': '2019-07-19 22:56:21'
-    }
-]
-segment = walk_segments[0]
+segment = walk_segments[3]
 
 """ SET UP SOURCE DATA """
 framerate_hz = 25
@@ -43,15 +18,15 @@ smoothing = 10
 frame_delay = 1000/framerate_hz
 window = int(framerate_hz / 25 * smoothing)
 kr = KinectRecording(segment['rgb_path'])
-floor = Floor.from_csv(segment['pressure_path'], freq=pd.Timedelta(frame_delay, 'ms'), start=segment['start'], end=segment['end'])
+floor = FloorRecording.from_csv(segment['pressure_path'], freq=pd.Timedelta(frame_delay, 'ms'), start=segment['start'], end=segment['end'])
 samples = pd.DatetimeIndex(floor.samples.time.values)
 
 """ CACHE SOME VARIABLES """
 pressure = floor.pressure
 cop = floor.cop
-speed = floor.cop_speed.rolling(time=window, center=True).mean()
-delta_speed = floor.cop_delta_speed.rolling(time=window, center=True).mean()
-steps = floor.footsteps
+speed = floor.cop_vel_mag.rolling(time=window, center=True).mean()
+delta_speed = floor.cop_vel_mag_roc.rolling(time=window, center=True).mean()
+steps = floor.footstep_positions
 cop_mlap = floor.cop_mlap
 cop_vel_mlap = floor.cop_vel_mlap
 
@@ -110,10 +85,14 @@ start_mid, end_mid = floor.walk_line
 ax2.plot([start_mid.x, end_mid.x], [start_mid.y, end_mid.y], c='r')
 
 # BOTTOM
-floor.cop_speed.plot(ax=ax3)
-scrub_line = ax3.axvline(samples[0], c='r')
+floor.cop_vel_mag.plot(ax=ax3)
+(floor.cop_vel_mag_roc / 20).plot(ax=ax3)
+(floor.cop_accel_mag_roc / 100).rolling(time=10).mean().plot(ax=ax3)
+scrub_line = ax3.axvline(samples[0], c='k')
 for step_time in steps.time.values:
-    ax3.axvline(step_time, c='k', linestyle='--')
+    ax3.axvline(step_time, c='gray', linestyle=':')
+for strike in floor._heelstrikes.dir:
+    ax3.axvline(strike.time.values, c=('r' if strike.item() == 'right' else 'b'), linestyle='--')
 plt.setp(ax3.xaxis.get_majorticklabels(), rotation='horizontal', ha='center', size=6)
 
 # VERTICAL
@@ -123,10 +102,10 @@ ax4.axvline(0, c='k')
 ax4.axis(ymin=samples[0], ymax=samples[-1])
 plt.setp(ax4.yaxis.get_majorticklabels(), rotation='vertical', va='center', size=6)
 # ax4.set_axis_off()
-scrub_line_v = ax4.axhline(samples[0], c='r')
+scrub_line_v = ax4.axhline(samples[0], c='k')
 
 for step_time in steps.time.values:
-    ax4.axhline(step_time, c='k', linestyle='--')
+    ax4.axhline(step_time, c='gray', linestyle=':')
 
 
 plt.tight_layout(pad=0, w_pad=0.4)
@@ -141,6 +120,15 @@ def onclick(event):
             dt = mdates.num2date(event.xdata)
             i = samples.get_loc(dt, method='nearest')
             update_fig(i)
+
+
+def onkeypress(event):
+    dt = scrub_line.get_data()[0][0]
+    i = samples.get_loc(dt, method='nearest')
+    if event.key == "left":
+        update_fig(i - 1)
+    elif event.key == "right":
+        update_fig(i + 1)
 
 
 def update_frame(i):
@@ -158,5 +146,6 @@ def animate(path=None):
         ani.save(path, writer=writer)
 
 
-cid = fig.canvas.mpl_connect('button_press_event', onclick)
+key_event_id = fig.canvas.mpl_connect('key_press_event', onkeypress)
+click_event_id = fig.canvas.mpl_connect('button_press_event', onclick)
 update_fig(0)

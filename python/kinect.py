@@ -19,9 +19,12 @@ class KinectRecording:
     def imread(self, dt: datetime, mirror=True):
         if not self.dir_path:
             raise FileNotFoundError('No Kinect RGB data path provided')
-        index = self.df.index.get_loc(dt, method='ffill')
-        entry = self.df.iloc[index]
-        filename = f'{entry["time_rel"]}_{entry["frame"]}.jpg'
-        img = plt.imread(f'{self.dir_path}/{filename}')
-        img = np.flip(img, axis=1) if mirror else img
+        try:
+            index = self.df.index.get_loc(dt, method='ffill')
+            entry = self.df.iloc[index]
+            filename = f'{entry["time_rel"]}_{entry["frame"]}.jpg'
+            img = plt.imread(f'{self.dir_path}/{filename}')
+            img = np.flip(img, axis=1) if mirror else img
+        except KeyError:
+            img = np.zeros((1080, 1920, 3))
         return img

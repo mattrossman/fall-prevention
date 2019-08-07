@@ -330,6 +330,8 @@ function loadSliderContent(binsDaily, x, y, property) {
     headerText.innerHTML = dateObj.toLocaleDateString("en-US", options);
 
     //timeline
+    const tlContainer = document.createElement('div');
+    tlContainer.setAttribute('class', 'col-sm-12');
     const tl = document.createElement('div');
     tl.setAttribute('class', 'cntl');
     const tlBar = document.createElement('span');
@@ -346,6 +348,29 @@ function loadSliderContent(binsDaily, x, y, property) {
         tlSubState.setAttribute('class', 'cntl-state');
         const tlContent = document.createElement('div');
         tlContent.setAttribute('class', 'cntl-content');
+        const segmentAnchor = document.createElement('a');
+        segmentAnchor.setAttribute('class', 'click');
+        segmentAnchor.onclick = function() {
+
+            //key is a ____??
+            //const key = segments[i]['time'];
+            //alert(key);
+            const slider = $('#slider').slideReveal({
+                push: false,
+                overlay: true,
+                position: "right",
+                width: 850
+            });
+            slider.slideReveal('show');
+
+            tlContainer.setAttribute('class', 'col-sm-4');
+            const rendererContainer = document.createElement('div');
+            rendererContainer.setAttribute('class', 'col-sm-8');
+
+            tlContent.setAttribute('class', 'ccntl-content');
+
+        
+        }
         const contentHeader = document.createElement('h4');
         const segmentTime = new Date(parseInt(segments[i]['time']));
         const stringTime = segmentTime.toLocaleTimeString("en-US");
@@ -354,7 +379,8 @@ function loadSliderContent(binsDaily, x, y, property) {
         description.innerHTML = Object.values(segments[i])[property];
         tlContent.appendChild(contentHeader);
         tlContent.appendChild(description);
-        tlSubState.appendChild(tlContent);
+        segmentAnchor.appendChild(tlContent);
+        tlSubState.appendChild(segmentAnchor);
         const tlIcon = document.createElement('div');
         tlIcon.setAttribute('class', 'cntl-icon cntl-center');
         tlIcon.innerHTML = segmentTime.toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'});
@@ -362,11 +388,21 @@ function loadSliderContent(binsDaily, x, y, property) {
         tlStates.appendChild(tlSubState);
     }
     tl.appendChild(tlStates);
-    tl.setAttribute('style', 'overflow-y:auto;');
+    tlContainer.appendChild(tl);
+    //tl.setAttribute('style', 'overflow-y:auto;');
     header.appendChild(headerText);
     content.appendChild(header);
-    content.appendChild(tl);
+    content.appendChild(tlContainer);
     slider.appendChild(content);
+}
+
+function showSkeleton(key) {
+
+    //key is a ____??
+    const slider = document.getElementById('slider');
+    alert('bitch');
+    slider.style.width = 600;
+
 }
 
 $(document).ready(function(e){

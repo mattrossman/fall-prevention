@@ -10,6 +10,13 @@ body {
 	margin-right: 10px;
 }
 
+.ccntl {
+	position: relative;
+	width: 100%;
+	margin-left: 10px;
+	margin-right: 10px;
+}
+
 .cntl-center {
 	left:0;
     right: 0;
@@ -36,12 +43,31 @@ body {
 
 }
 
+.slider {
+	position: fixed;
+	width: 500px;
+	transition: all 300ms ease 0s;
+	height: 100%;
+	top: 0px;
+	right: 0px;
+	z-index: 1049;
+}
+
 .cntl-state {
 	position: relative;
 	width:100%;
 	min-height: 150px;
 	margin-bottom: 0px;
 	margin-top: 10px;
+}
+
+.click {
+	position: relative;
+	width:100%;
+	min-height: 150px;
+	margin-bottom: 0px;
+	margin-top: 10px;
+	cursor: pointer;
 }
 
 .cntl-state::after {
@@ -69,6 +95,18 @@ body {
 	width: 55%;
 	padding: 2%;
 	background-color:#fff;
+	border-radius: 8px;
+	border-bottom: solid 3px #009ABB;
+	float:left;
+	opacity:1;
+	position:relative;
+	margin-left: 5%;
+}
+
+.ccntl-content {
+	width: 55%;
+	padding: 2%;
+	background-color:#98FB98;
 	border-radius: 8px;
 	border-bottom: solid 3px #009ABB;
 	float:left;

@@ -9,8 +9,8 @@ from pyquaternion import Quaternion
 
 # Get the entries where body tracking is true
 df_raw = pd.read_csv('data/poses.csv', sep=';', header=None)
-df_tracked = df_raw[df_raw.iloc[:, 334]]
-plane = [-0.003449774, 0.9992383, 0.03886962, 0.9575303]
+df_tracked = df_raw[df_raw.iloc[:, 334]]  # Column 334 holds a boolean for body tracking
+plane = [-0.003449774, 0.9992383, 0.03886962, 0.9575303]  # Floor clip plane
 
 # Get the chunks of joint columns
 num_joints = 25
@@ -58,7 +58,7 @@ def frame_to_timestamp(frame):
 
 
 def pos_at_frame(frame):
-    """
+    """All of the joint position values at the given frame number
 
     Parameters
     ----------
@@ -76,7 +76,7 @@ def pos_at_frame(frame):
 
 
 def orientation_at_frame(frame):
-    """
+    """All of the joint orientation values at the given frame number
 
     Parameters
     ----------
@@ -94,11 +94,11 @@ def orientation_at_frame(frame):
 
 
 def plot_pos(df_pos):
-    """
+    """ Plot all the joint positions at a certain time in 3D
+
     df_pos : pandas.DataFrame
         Axis 0: Joints
         Axis 1: Dimension (X, Y, Z)
-
     """
     xs, ys, zs = df_pos.values.T
     points, = plt.plot(xs, ys, zs, linestyle="", marker="o")

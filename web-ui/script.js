@@ -338,8 +338,9 @@ function loadSliderContent(binsDaily, x, propertyTitle, propertyUnit, property) 
     //timeline
     const tlContainer = document.createElement('div');
     tlContainer.setAttribute('class', 'col-sm-12');
-    const rendererContainer = document.createElement('div');
+    const rendererContainer = document.createElement('canvas');
     rendererContainer.setAttribute('class', 'col-sm-0');
+    rendererContainer.setAttribute('id', 'renderer');
     const tl = document.createElement('div');
     tl.setAttribute('class', 'cntl');
     const tlBar = document.createElement('span');
@@ -360,6 +361,8 @@ function loadSliderContent(binsDaily, x, propertyTitle, propertyUnit, property) 
         const segmentAnchor = document.createElement('a');
         segmentAnchor.setAttribute('class', 'click');
         segmentAnchor.setAttribute('id', i.toString(10));
+
+        //Show Skeleton
         segmentAnchor.onclick = function() {
 
 
@@ -383,6 +386,7 @@ function loadSliderContent(binsDaily, x, propertyTitle, propertyUnit, property) 
             tlContent.setAttribute('class', 'ccntl-content');
             tlContainer.setAttribute('class', 'col-sm-4');
             rendererContainer.setAttribute('class', 'col-sm-8');
+            threejs();
             var button = document.createElement("button");
             button.innerHTML = "Hide Visualization";
             rendererContainer.appendChild(button);
@@ -409,10 +413,8 @@ function loadSliderContent(binsDaily, x, propertyTitle, propertyUnit, property) 
                 }
             });
 
-
         }       
         
-
         const segmentTime = new Date(parseInt(segments[i]['time']));
         const description = document.createElement('h4')
         description.innerHTML = (Object.values(segments[i])[property]).toFixed(8);
@@ -425,6 +427,7 @@ function loadSliderContent(binsDaily, x, propertyTitle, propertyUnit, property) 
         tlSubState.appendChild(tlIcon);
         tlStates.appendChild(tlSubState);
     }
+
     tl.appendChild(tlStates);
     tlContainer.appendChild(tl);
     header.appendChild(headerText1);
@@ -435,12 +438,75 @@ function loadSliderContent(binsDaily, x, propertyTitle, propertyUnit, property) 
     slider.appendChild(content);
 }
 
-function showSkeleton(key) {
+//ThreeJS Renderer
 
-    //key is a ____??
-    const slider = document.getElementById('slider');
-    alert('bitch');
-    slider.style.width = 600;
+function threejs() {
+    const canvas = document.getElementById('renderer');
+    const renderer = new THREE.WebGLRenderer({canvas});
+
+    //camera
+    const fov = 75;
+    const aspect = 2;  // the canvas default
+    const near = 0.1;
+    const far = 5;
+    const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+    camera.position.z = 2;
+
+    //scene
+    const scene = new THREE.Scene();
+
+    //light
+    {
+        const color = 0xFFFFFF;
+        const intensity = 1;
+        const light = new THREE.DirectionalLight(color, intensity);
+        light.position.set(-1, 2, 4);
+        scene.add(light);
+    }
+
+    //box
+    const boxWidth = 1;
+    const boxHeight = 1;
+    const boxDepth = 1;
+    const geometry = new THREE.BoxGeometry(boxWidth, boxHeight, boxDepth);
+    const material = new THREE.MeshPhongMaterial({color: 0x44aa88});
+    const cube = new THREE.Mesh(geometry, material);
+
+    scene.add(cube);
+    renderer.render(scene, camera);
+
+    //returns whether resolution needs to be changed because of window size change
+    function resizeRendererToDisplaySize(renderer) {
+        const canvas = renderer.domElement;
+        const width = canvas.clientWidth;
+        const height = canvas.clientHeight;
+        const needResize = canvas.width !== width || canvas.height !== height;
+        if (needResize) {
+          renderer.setSize(width, height, false);
+        }
+        return needResize;
+      }
+
+    //animation
+    function render(time) {
+        time *= 0.001;  // convert time to seconds
+
+        //prevent blurriness when window stretches
+        if (resizeRendererToDisplaySize(renderer)) {
+            const canvas = renderer.domElement;
+            camera.aspect = canvas.clientWidth / canvas.clientHeight;
+            camera.updateProjectionMatrix();
+        }
+
+        cube.rotation.x = time;
+        cube.rotation.y = time;
+
+        renderer.render(scene, camera);
+
+        requestAnimationFrame(render);
+      }
+    requestAnimationFrame(render);
+
 
 }
 

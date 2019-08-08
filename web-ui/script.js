@@ -172,7 +172,8 @@ var myCallback = function(json) {
         const y = data.points[0].y;
         const property = data.points[0].curveNumber;
         clearSliderContent();
-        loadSliderContent(binsDaily, x, y, (property + 1));
+        const pData = Object.values(properties)[property];
+        loadSliderContent(binsDaily, x, pData['title'], pData['units'], (property + 1));
         const slider = $('#slider').slideReveal({
             push: false,
             overlay: true,
@@ -312,7 +313,7 @@ function clearSliderContent() {
     }
 }
 
-function loadSliderContent(binsDaily, x, y, property) {
+function loadSliderContent(binsDaily, x, propertyTitle, propertyUnit, property) {
     const date = x.split("-").map(string => parseInt(string));
     const dateObj = new Date(date[0], date[1] - 1, date[2]);
     const unixTime = Math.round(dateObj);
@@ -324,10 +325,15 @@ function loadSliderContent(binsDaily, x, y, property) {
     content.setAttribute('id', 'slideContent');
 
     //header
-    const header = document.createElement('header');
+    const header = document.createElement('div');
+    header.setAttribute('class', 'cntl-header');
     const options = {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'};
-    const headerText = document.createElement('a');
-    headerText.innerHTML = dateObj.toLocaleDateString("en-US", options);
+    const headerText1 = document.createElement('div');
+    headerText1.setAttribute('class', 'cntl-header-a');
+    headerText1.innerHTML = propertyTitle + " " + propertyUnit;
+    const headerText2 = document.createElement('div');
+    headerText2.setAttribute('class', 'cntl-header-b');
+    headerText2.innerHTML = dateObj.toLocaleDateString("en-US", options);
 
     //timeline
     const tlContainer = document.createElement('div');
@@ -353,19 +359,28 @@ function loadSliderContent(binsDaily, x, y, property) {
         tlContent.setAttribute('id', 'cntl-content' + i);
         const segmentAnchor = document.createElement('a');
         segmentAnchor.setAttribute('class', 'click');
+        segmentAnchor.setAttribute('id', i.toString(10));
         segmentAnchor.onclick = function() {
 
-            //key is a ____??
-            //const key = segments[i]['time'];
-            //alert(key);
+
+            const key = segments[this.id]['time']; //unix time string for that segment
+            //make segments unclickable while window is open
+            for (var j = 0; j < segments.length; j++) {
+                s = j.toString(10);
+                const el = document.getElementById(s);
+                el.onclick = false;
+                el.setAttribute('class', 'offclick');
+            }
             const slider = $('#slider').slideReveal({
                 push: false,
                 overlay: true,
                 position: "right",
                 width: 850
             });
+
             slider.slideReveal('show');
 
+            tlContent.setAttribute('class', 'ccntl-content');
             tlContainer.setAttribute('class', 'col-sm-4');
             rendererContainer.setAttribute('class', 'col-sm-8');
             var button = document.createElement("button");
@@ -386,44 +401,21 @@ function loadSliderContent(binsDaily, x, y, property) {
                 tlContainer.setAttribute('class', 'col-sm-12');
                 const rendererContainer = document.createElement('div');
                 rendererContainer.setAttribute('class', 'col-sm-0');
+                for (var j = 0; j < segments.length; j++) {
+                    s = j.toString(10);
+                    const el = document.getElementById(s);
+                    el.onclick = true;
+                    el.setAttribute('class', 'click');
+                }
             });
 
 
-            tlContent.setAttribute('class', 'ccntl-content');
-            /*
-
-            $(document).click(function(event) { 
-                $target = $(event.target);
-                //alert('bitch');
-                const s = 'cntl-content' + i;
-                if(!$target.closest('#' + s).length || 
-                $('#' + s).className === ('ccntl-content')) {
-                    alert('slut!');
-                    const slider = $('#slider').slideReveal({
-                        push: false,
-                        overlay: true,
-                        position: "right",
-                        width: 300
-                    });
-                    slider.slideReveal('show');
-                    tlContainer.setAttribute('class', 'col-sm-12');
-                    const rendererContainer = document.createElement('div');
-                    rendererContainer.setAttribute('class', 'col-sm-0');
-    
-                    tlContent.setAttribute('class', 'cntl-content');
-                }        
-            });
-            */
-    
         }       
         
-        const contentHeader = document.createElement('h4');
+
         const segmentTime = new Date(parseInt(segments[i]['time']));
-        const stringTime = segmentTime.toLocaleTimeString("en-US");
-        contentHeader.innerHTML = stringTime;
-        const description = document.createElement('p')
-        description.innerHTML = Object.values(segments[i])[property];
-        tlContent.appendChild(contentHeader);
+        const description = document.createElement('h4')
+        description.innerHTML = (Object.values(segments[i])[property]).toFixed(8);
         tlContent.appendChild(description);
         segmentAnchor.appendChild(tlContent);
         tlSubState.appendChild(segmentAnchor);
@@ -435,8 +427,8 @@ function loadSliderContent(binsDaily, x, y, property) {
     }
     tl.appendChild(tlStates);
     tlContainer.appendChild(tl);
-    //tl.setAttribute('style', 'overflow-y:auto;');
-    header.appendChild(headerText);
+    header.appendChild(headerText1);
+    header.appendChild(headerText2);
     content.appendChild(header);
     content.appendChild(tlContainer);
     content.appendChild(rendererContainer);

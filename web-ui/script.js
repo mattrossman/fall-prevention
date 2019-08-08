@@ -338,9 +338,16 @@ function loadSliderContent(binsDaily, x, propertyTitle, propertyUnit, property) 
     //timeline
     const tlContainer = document.createElement('div');
     tlContainer.setAttribute('class', 'col-sm-12');
-    const rendererContainer = document.createElement('canvas');
+    const rendererContainer = document.createElement('div');
     rendererContainer.setAttribute('class', 'col-sm-0');
-    rendererContainer.setAttribute('id', 'renderer');
+    const renderer = document.createElement('canvas');
+    const buttonDiv = document.createElement('div');
+    buttonDiv.setAttribute('id', 'buttonDiv');
+    //renderer.style.paddingTop = '15px';
+    //renderer.style.minHeight = '500px';
+    renderer.setAttribute('id', 'renderer');
+    rendererContainer.appendChild(renderer);
+    rendererContainer.appendChild(buttonDiv);
     const tl = document.createElement('div');
     tl.setAttribute('class', 'cntl');
     const tlBar = document.createElement('span');
@@ -389,11 +396,19 @@ function loadSliderContent(binsDaily, x, propertyTitle, propertyUnit, property) 
             threejs();
             var button = document.createElement("button");
             button.innerHTML = "Hide Visualization";
-            rendererContainer.appendChild(button);
+            button.setAttribute('id', 'button');
+            buttonDiv.appendChild(button);
 
             button.addEventListener ("click", function() {
 
-                button.style.display = 'none';
+                const rendererRem = document.getElementById('renderer');
+                if (rendererRem != null) {
+                    rendererRem.parentNode.removeChild(rendererRem);
+                }
+                const buttonRem = document.getElementById('button');
+                if (buttonRem != null) {
+                    buttonRem.parentNode.removeChild(buttonRem);
+                }
                 tlContent.setAttribute('class', 'cntl-content');
                 const slider = $('#slider').slideReveal({
                     push: false,

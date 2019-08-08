@@ -332,6 +332,8 @@ function loadSliderContent(binsDaily, x, y, property) {
     //timeline
     const tlContainer = document.createElement('div');
     tlContainer.setAttribute('class', 'col-sm-12');
+    const rendererContainer = document.createElement('div');
+    rendererContainer.setAttribute('class', 'col-sm-0');
     const tl = document.createElement('div');
     tl.setAttribute('class', 'cntl');
     const tlBar = document.createElement('span');
@@ -348,6 +350,7 @@ function loadSliderContent(binsDaily, x, y, property) {
         tlSubState.setAttribute('class', 'cntl-state');
         const tlContent = document.createElement('div');
         tlContent.setAttribute('class', 'cntl-content');
+        tlContent.setAttribute('id', 'cntl-content' + i);
         const segmentAnchor = document.createElement('a');
         segmentAnchor.setAttribute('class', 'click');
         segmentAnchor.onclick = function() {
@@ -364,13 +367,56 @@ function loadSliderContent(binsDaily, x, y, property) {
             slider.slideReveal('show');
 
             tlContainer.setAttribute('class', 'col-sm-4');
-            const rendererContainer = document.createElement('div');
             rendererContainer.setAttribute('class', 'col-sm-8');
+            var button = document.createElement("button");
+            button.innerHTML = "Hide Visualization";
+            rendererContainer.appendChild(button);
+
+            button.addEventListener ("click", function() {
+
+                button.style.display = 'none';
+                tlContent.setAttribute('class', 'cntl-content');
+                const slider = $('#slider').slideReveal({
+                    push: false,
+                    overlay: true,
+                    position: "right",
+                    width: 300
+                });
+                slider.slideReveal('show');
+                tlContainer.setAttribute('class', 'col-sm-12');
+                const rendererContainer = document.createElement('div');
+                rendererContainer.setAttribute('class', 'col-sm-0');
+            });
+
 
             tlContent.setAttribute('class', 'ccntl-content');
+            /*
 
+            $(document).click(function(event) { 
+                $target = $(event.target);
+                //alert('bitch');
+                const s = 'cntl-content' + i;
+                if(!$target.closest('#' + s).length || 
+                $('#' + s).className === ('ccntl-content')) {
+                    alert('slut!');
+                    const slider = $('#slider').slideReveal({
+                        push: false,
+                        overlay: true,
+                        position: "right",
+                        width: 300
+                    });
+                    slider.slideReveal('show');
+                    tlContainer.setAttribute('class', 'col-sm-12');
+                    const rendererContainer = document.createElement('div');
+                    rendererContainer.setAttribute('class', 'col-sm-0');
+    
+                    tlContent.setAttribute('class', 'cntl-content');
+                }        
+            });
+            */
+    
+        }       
         
-        }
         const contentHeader = document.createElement('h4');
         const segmentTime = new Date(parseInt(segments[i]['time']));
         const stringTime = segmentTime.toLocaleTimeString("en-US");
@@ -393,6 +439,7 @@ function loadSliderContent(binsDaily, x, y, property) {
     header.appendChild(headerText);
     content.appendChild(header);
     content.appendChild(tlContainer);
+    content.appendChild(rendererContainer);
     slider.appendChild(content);
 }
 

@@ -5,6 +5,7 @@ from typing import List, Tuple
 import numpy as np
 import pandas as pd
 import xarray as xr
+import re
 from scipy.signal import argrelmin, argrelmax
 
 
@@ -149,7 +150,7 @@ class FloorRecording:
 
     board_map = [19, 17, 21, 18]
 
-    def __init__(self, df: pd.DataFrame, freq='40ms', start=None, end=None):
+    def __init__(self, df: pd.DataFrame, freq='40ms', start=None, end=None, name=None, trimmed=False):
         """
         Parameters
         ----------
@@ -161,16 +162,23 @@ class FloorRecording:
                        for (x, board_id) in enumerate(FloorRecording.board_map)]
         all_start, all_end = FloorRecording._range(self.boards)
         self.freq = pd.Timedelta(freq)
-        start = start or all_start
-        end = end or all_end
-        sample_times = pd.date_range(start, end, freq=pd.Timedelta(freq))
+        self.name = name
         self.da = self._get_darray()
         self.noise = self.da.isel(time=0)
+        start = start or all_start
+        end = end or all_end
+        if trimmed:
+            start, end = self.loaded_window
+        sample_times = pd.date_range(start, end, freq=pd.Timedelta(freq))
         self.samples = self.da.interp(time=sample_times)
 
     @staticmethod
-    def from_csv(path, *args,**kwargs):
-        return FloorRecording(_df_from_csv(path), *args, **kwargs)
+    def from_csv(path, name=None, *args, **kwargs):
+        name = name or re.match(r'.*/(.*)\.csv', path).groups()[0]  # By default use the csv file name
+        return FloorRecording(_df_from_csv(path), name=name, *args, **kwargs)
+
+    def __repr__(self):
+        return f'<FloorRecording {self.name}>'
 
     @staticmethod
     def _range(boards) -> Tuple[datetime, datetime]:
@@ -424,11 +432,12 @@ class FloorRecording:
 
     @property
     def gait_cycles(self):
-        return [GaitCycle(self, window) for window in self.step_triplet_windows]
+        return np.array([GaitCycle(self, window, name=f'{self.name}_cycle{i}')
+                         for i, window in enumerate(self.step_triplet_windows)])
 
     @property
     def loaded_window(self):
-        mag = self.cop.magnitude
+        mag = self._denoise(self.da).sum(('x', 'y'))
         loaded_range = mag.where(mag > mag.mean(), drop=True).time.values
         return loaded_range[0], loaded_range[-1]
 
@@ -442,14 +451,19 @@ class FloorRecording:
             The bounds to slice between, can be formatted as a string for pandas to parse
         """
         self.samples = self.samples.sel(time=slice(pd.Timestamp(start), pd.Timestamp(end)))
+        return self
 
 
 class GaitCycle:
     """Gait cycle normalized to a fixed number of samples"""
-    def __init__(self, floor, window):
+    def __init__(self, floor, window, name=None):
         self.floor = floor
         self.date_window = window
-        self.date_range = pd.date_range(*window, periods=40)
+        self.date_range = pd.date_range(*window, periods=20)
+        self.name = name
+
+    def __repr__(self):
+        return f'<GaitCycle {self.name}>'
 
     @property
     def cop_vel_mlap(self):
@@ -469,10 +483,10 @@ class GaitCycle:
     def features(self):
         vel_mlap = self.cop_vel_mlap
         pos_mlap = self.cop_mlap
-        return np.concatenate((vel_mlap.med, vel_mlap.ant, pos_mlap.med, pos_mlap.ant))
+        return np.concatenate((vel_mlap.med, vel_mlap.ant))
 
 
-class FloorBatch:
+class FloorRecordingBatch:
     def __init__(self, floors):
         self.floors = floors
 
@@ -491,6 +505,11 @@ class FloorBatch:
         -------
         FloorBatch
         """
-        return FloorBatch(floors=[FloorRecording.from_csv(path, start=start, end=end)
-                                  for path in paths for start, end in bounds])
+        return FloorRecordingBatch(floors=[FloorRecording.from_csv(path, start=start, end=end)
+                                           for path in paths for start, end in bounds])
+
+    @property
+    def gait_cycles(self):
+        return np.hstack([floor.gait_cycles for floor in self.floors])
+
 

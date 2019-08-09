@@ -38,7 +38,6 @@ def plot_motion_similarity():
 
 
     """ LEFT PLOT """
-    # ax1.scatter(cycle_cop.x, cycle_cop.y)
     ax1.plot(*zip(start.to_array(), end.to_array()), c='r', linestyle=':')
     ax1.set_xlim(cycle_cop.x.min().item(), cycle_cop.x.max().item())
     ax1.quiver(cycle_cop.x, cycle_cop.y, cycle_cop_vel.x, cycle_cop_vel.y,
@@ -46,7 +45,6 @@ def plot_motion_similarity():
 
     """ RIGHT PLOT """
     ax2.axvline(0, c='r', linestyle=':')
-    # ax2.scatter(cycle_cop_mlap.med, cycle_cop_mlap.ant)
     ax2.quiver(cycle.cop_mlap.med, cycle.cop_mlap.ant, cycle.cop_vel_mlap.med, cycle.cop_vel_mlap.ant, range(40),
                angles='xy', units='dots', width=5, pivot='mid', cmap='cool')
     ax2.set_xlim(-0.5, 0.5)

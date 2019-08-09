@@ -426,8 +426,14 @@ class FloorRecording:
     def gait_cycles(self):
         return [GaitCycle(self, window) for window in self.step_triplet_windows]
 
+    @property
+    def loaded_window(self):
+        mag = self.cop.magnitude
+        loaded_range = mag.where(mag > mag.mean(), drop=True).time.values
+        return loaded_range[0], loaded_range[-1]
+
     def trim(self, start, end):
-        """[DEPRECATED] Trim the time dimension of the data array
+        """Trim the time dimension of the data array
 
         Parameters
         ----------
@@ -435,7 +441,7 @@ class FloorRecording:
         end : str, datetime
             The bounds to slice between, can be formatted as a string for pandas to parse
         """
-        self.da = self.da.sel(time=slice(pd.Timestamp(start), pd.Timestamp(end)))
+        self.samples = self.samples.sel(time=slice(pd.Timestamp(start), pd.Timestamp(end)))
 
 
 class GaitCycle:

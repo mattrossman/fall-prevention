@@ -396,13 +396,11 @@ class FloorRecording:
             Dataset containing (med, ant) data variables, with the origin at the start of the walk line
         """
         start, end = self.walk_line
-        v_line = end - start
-        line_length = np.linalg.norm((end - start).to_array())
-        line_norm = v_line / line_length
-        rot_matrix = np.array([[-line_norm.y.item(), line_norm.x.item()],
-                               [line_norm.x.item(), line_norm.y.item()]])
-        rotated = ds[['x', 'y']].to_array().values.T @ rot_matrix.T
-        med, ant = rotated.T
+        v_line = (end - start).to_array()
+        v_rot = np.array([v_line[1], -v_line[0]])  # Rotate v_line 90 degrees clockwise
+        c, s = v_rot / np.linalg.norm(v_rot)  # Cosine and sine from unit vector
+        rot_matrix = np.array([[c, s], [-s, c]])  # Clockwise rotation matrix
+        med, ant = rot_matrix.dot(ds[['x', 'y']].to_array().values)
         return xr.Dataset({'med': (['time'], med), 'ant': (['time'], ant)},  {'time': ds.time})
 
     @property
@@ -444,6 +442,7 @@ class GaitCycle:
     """Gait cycle normalized to a fixed number of samples"""
     def __init__(self, floor, window):
         self.floor = floor
+        self.date_window = window
         self.date_range = pd.date_range(*window, periods=40)
 
     @property

@@ -343,9 +343,9 @@ class FloorRecording:
         step3 = cycle.isel(window=2)
         v_step = np.array([step2.x - step1.x, step2.y - step1.y])
         v_stride = np.array([step3.x - step1.x, step3.y - step1.y])
-        # Dot product of v_step and 90CCW rotation of v_stride
-        dir = v_step[0] * -v_stride[1] + v_step[1] * v_stride[0]
-        return 'right' if dir > 0 else 'left'
+        # Dot product of v_stride and 90CCW rotation of v_step
+        dir = v_stride.dot([-v_step[1], v_step[0]])
+        return 'right' if dir < 0 else 'left'  # Remember that (0, 0) is top left on the floor
 
     @property
     def footstep_cycles(self):

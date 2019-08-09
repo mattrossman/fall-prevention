@@ -452,7 +452,8 @@ class GaitCycle:
     @property
     def cop_mlap(self):
         pos = self.floor.cop_mlap.interp(time=self.date_range).drop('time')
-        return pos - pos.isel(time=0)
+        pos['ant'] = pos.ant - pos.ant.isel(time=0)
+        return pos
 
     @property
     def duration(self):

@@ -74,7 +74,6 @@ ax2.set_title('')
 ax2.set_aspect('equal', adjustable='box')
 quad = pressure.isel(time=0).plot(ax=ax2, vmin=0, vmax=1023, add_colorbar=False)
 cop_dot = ax2.plot(0, 0, 'ro')
-ax2.invert_yaxis()
 
 rights = cop.sel(time=steps.dir[steps.dir == 'right'].time)
 lefts = cop.sel(time=steps.dir[steps.dir == 'left'].time)

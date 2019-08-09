@@ -138,10 +138,9 @@ class FloorRecording:
         Board objects that make up the floor, in left to right order
     da : xarray.DataArray
         Interpolated mapping of all sensor readings with x, y, and time dimensions
+        Note that (0, 0) is located at the bottom left of the floor
     noise : xarray.DataArray
         Base pressure readings on the floor over the x, y plane
-    cop : xarray.Dataset
-        Center of pressure over time containing x, y, and magnitude variables
     Floor.board_map : List[int]
         List of board IDs in the order they appear left to right on the floor
     """
@@ -195,6 +194,7 @@ class FloorRecording:
             Readings for the entire floor with x, y, and time dimensions
         """
         da = xr.concat([board.da for board in self.boards], dim='x')
+        da = da.assign_coords(y=np.arange(0, 8)[::-1], x=np.arange(0, 16))
         return _nonnegative_darray(da.interpolate_na(dim='time', method='linear').dropna(dim='time'))
 
     @staticmethod
@@ -345,7 +345,7 @@ class FloorRecording:
         v_stride = np.array([step3.x - step1.x, step3.y - step1.y])
         # Dot product of v_stride and 90CCW rotation of v_step
         dir = v_stride.dot([-v_step[1], v_step[0]])
-        return 'right' if dir < 0 else 'left'  # Remember that (0, 0) is top left on the floor
+        return 'right' if dir > 0 else 'left'
 
     @property
     def footstep_cycles(self):
@@ -460,7 +460,8 @@ class GaitCycle:
     @property
     def features(self):
         vel_mlap = self.cop_vel_mlap
-        return np.concatenate((vel_mlap.med, vel_mlap.ant))
+        pos_mlap = self.cop_mlap
+        return np.concatenate((vel_mlap.med, vel_mlap.ant, pos_mlap.med, pos_mlap.ant))
 
 
 class FloorBatch:

@@ -10,7 +10,7 @@ from kinect import KinectRecording
 from smartfloor import FloorRecording
 from segments import time_sync as walk_segments
 
-segment = walk_segments[3]
+segment = walk_segments[2]
 
 """ SET UP SOURCE DATA """
 framerate_hz = 25
@@ -18,12 +18,13 @@ smoothing = 10
 frame_delay = 1000/framerate_hz
 window = int(framerate_hz / 25 * smoothing)
 kr = KinectRecording(segment['rgb_path'])
-floor = FloorRecording.from_csv(segment['pressure_path'], freq=pd.Timedelta(frame_delay, 'ms'), start=segment['start'], end=segment['end'])
+floor = FloorRecording.from_csv('data/08-07-2019/2_normal_1.csv', freq=pd.Timedelta(frame_delay, 'ms'), trimmed=True)
 samples = pd.DatetimeIndex(floor.samples.time.values)
 
 """ CACHE SOME VARIABLES """
 pressure = floor.pressure
 cop = floor.cop
+mag = cop.magnitude
 speed = floor.cop_vel_mag.rolling(time=window, center=True).mean()
 delta_speed = floor.cop_vel_mag_roc.rolling(time=window, center=True).mean()
 steps = floor.footstep_positions
@@ -74,7 +75,6 @@ ax2.set_title('')
 ax2.set_aspect('equal', adjustable='box')
 quad = pressure.isel(time=0).plot(ax=ax2, vmin=0, vmax=1023, add_colorbar=False)
 cop_dot = ax2.plot(0, 0, 'ro')
-ax2.invert_yaxis()
 
 rights = cop.sel(time=steps.dir[steps.dir == 'right'].time)
 lefts = cop.sel(time=steps.dir[steps.dir == 'left'].time)

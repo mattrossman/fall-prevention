@@ -5,6 +5,7 @@ from typing import List, Tuple
 import numpy as np
 import pandas as pd
 import xarray as xr
+import re
 from scipy.signal import argrelmin, argrelmax
 
 
@@ -31,7 +32,7 @@ class BoardRecording:
     x : int
         Where the left-most tile of this board begins on the floor (each tile represents one unit)
     y : int
-        Where the top-most tile of this board begins on the floor (each tile represents one unit)
+        Where the bottom-most tile of this board begins on the floor (each tile represents one unit)
     da : xarray.DataArray
         DataArray with x, y, and time dimensions, such that the time dimension can be indexed by datetime
     hz : xarray.DataArray
@@ -66,7 +67,7 @@ class BoardRecording:
         x : int
             Where the left-most tile of this board begins on the floor (each tile represents one unit)
         y : int
-            Where the top-most tile of this board begins on the floor (each tile represents one unit)
+            Where the bottom-most tile of this board begins on the floor (each tile represents one unit)
         """
         # Extract this board's data, and remove the (now useless) board ID column
         self.df = df_floor[df_floor['board_id'] == board_id].drop(columns=['board_id'])
@@ -100,7 +101,9 @@ class BoardRecording:
         """
         return xr.DataArray(self.mapped_stream_arr(),
                             dims=['y', 'x', 'time'],
-                            coords={'time': self.df.index})
+                            coords={'time': self.df.index,
+                                    'x': np.arange(self.x, self.x + 4),
+                                    'y': np.arange(self.y, self.y + 8)[::-1]})
 
     def update_darray(self):
         """Update the internal DataArray inplace based on current DataFrame data
@@ -138,17 +141,16 @@ class FloorRecording:
         Board objects that make up the floor, in left to right order
     da : xarray.DataArray
         Interpolated mapping of all sensor readings with x, y, and time dimensions
+        Note that (0, 0) is located at the bottom left of the floor
     noise : xarray.DataArray
         Base pressure readings on the floor over the x, y plane
-    cop : xarray.Dataset
-        Center of pressure over time containing x, y, and magnitude variables
     Floor.board_map : List[int]
         List of board IDs in the order they appear left to right on the floor
     """
 
     board_map = [19, 17, 21, 18]
 
-    def __init__(self, df: pd.DataFrame, freq='40ms', start=None, end=None):
+    def __init__(self, df: pd.DataFrame, freq='40ms', start=None, end=None, name=None, trimmed=False):
         """
         Parameters
         ----------
@@ -160,16 +162,23 @@ class FloorRecording:
                        for (x, board_id) in enumerate(FloorRecording.board_map)]
         all_start, all_end = FloorRecording._range(self.boards)
         self.freq = pd.Timedelta(freq)
-        start = start or all_start
-        end = end or all_end
-        sample_times = pd.date_range(start, end, freq=pd.Timedelta(freq))
+        self.name = name
         self.da = self._get_darray()
         self.noise = self.da.isel(time=0)
+        start = start or all_start
+        end = end or all_end
+        if trimmed:
+            start, end = self.loaded_window
+        sample_times = pd.date_range(start, end, freq=pd.Timedelta(freq))
         self.samples = self.da.interp(time=sample_times)
 
     @staticmethod
-    def from_csv(path, *args,**kwargs):
-        return FloorRecording(_df_from_csv(path), *args, **kwargs)
+    def from_csv(path, name=None, *args, **kwargs):
+        name = name or re.match(r'.*/(.*)\.csv', path).groups()[0]  # By default use the csv file name
+        return FloorRecording(_df_from_csv(path), name=name, *args, **kwargs)
+
+    def __repr__(self):
+        return f'<FloorRecording {self.name}>'
 
     @staticmethod
     def _range(boards) -> Tuple[datetime, datetime]:
@@ -195,6 +204,7 @@ class FloorRecording:
             Readings for the entire floor with x, y, and time dimensions
         """
         da = xr.concat([board.da for board in self.boards], dim='x')
+        da = da.assign_coords(y=np.arange(0, 8)[::-1], x=np.arange(0, 16))
         return _nonnegative_darray(da.interpolate_na(dim='time', method='linear').dropna(dim='time'))
 
     @staticmethod
@@ -343,8 +353,8 @@ class FloorRecording:
         step3 = cycle.isel(window=2)
         v_step = np.array([step2.x - step1.x, step2.y - step1.y])
         v_stride = np.array([step3.x - step1.x, step3.y - step1.y])
-        # Dot product of v_step and 90CCW rotation of v_stride
-        dir = v_step[0] * -v_stride[1] + v_step[1] * v_stride[0]
+        # Dot product of v_stride and 90CCW rotation of v_step
+        dir = v_stride.dot([-v_step[1], v_step[0]])
         return 'right' if dir > 0 else 'left'
 
     @property
@@ -394,13 +404,11 @@ class FloorRecording:
             Dataset containing (med, ant) data variables, with the origin at the start of the walk line
         """
         start, end = self.walk_line
-        v_line = end - start
-        line_length = np.linalg.norm((end - start).to_array())
-        line_norm = v_line / line_length
-        rot_matrix = np.array([[-line_norm.y.item(), line_norm.x.item()],
-                               [line_norm.x.item(), line_norm.y.item()]])
-        rotated = ds[['x', 'y']].to_array().values.T @ rot_matrix.T
-        med, ant = rotated.T
+        v_line = (end - start).to_array()
+        v_rot = np.array([v_line[1], -v_line[0]])  # Rotate v_line 90 degrees clockwise
+        c, s = v_rot / np.linalg.norm(v_rot)  # Cosine and sine from unit vector
+        rot_matrix = np.array([[c, s], [-s, c]])  # Clockwise rotation matrix
+        med, ant = rot_matrix.dot(ds[['x', 'y']].to_array().values)
         return xr.Dataset({'med': (['time'], med), 'ant': (['time'], ant)},  {'time': ds.time})
 
     @property
@@ -424,10 +432,17 @@ class FloorRecording:
 
     @property
     def gait_cycles(self):
-        return [GaitCycle(self, window) for window in self.step_triplet_windows]
+        return np.array([GaitCycle(self, window, name=f'{self.name}_cycle{i}')
+                         for i, window in enumerate(self.step_triplet_windows)])
+
+    @property
+    def loaded_window(self):
+        mag = self._denoise(self.da).sum(('x', 'y'))
+        loaded_range = mag.where(mag > mag.mean(), drop=True).time.values
+        return loaded_range[0], loaded_range[-1]
 
     def trim(self, start, end):
-        """[DEPRECATED] Trim the time dimension of the data array
+        """Trim the time dimension of the data array
 
         Parameters
         ----------
@@ -435,14 +450,20 @@ class FloorRecording:
         end : str, datetime
             The bounds to slice between, can be formatted as a string for pandas to parse
         """
-        self.da = self.da.sel(time=slice(pd.Timestamp(start), pd.Timestamp(end)))
+        self.samples = self.samples.sel(time=slice(pd.Timestamp(start), pd.Timestamp(end)))
+        return self
 
 
 class GaitCycle:
     """Gait cycle normalized to a fixed number of samples"""
-    def __init__(self, floor, window):
+    def __init__(self, floor, window, name=None):
         self.floor = floor
-        self.date_range = pd.date_range(*window, periods=40)
+        self.date_window = window
+        self.date_range = pd.date_range(*window, periods=20)
+        self.name = name
+
+    def __repr__(self):
+        return f'<GaitCycle {self.name}>'
 
     @property
     def cop_vel_mlap(self):
@@ -451,7 +472,8 @@ class GaitCycle:
     @property
     def cop_mlap(self):
         pos = self.floor.cop_mlap.interp(time=self.date_range).drop('time')
-        return pos - pos.isel(time=0)
+        pos['ant'] = pos.ant - pos.ant.isel(time=0)
+        return pos
 
     @property
     def duration(self):
@@ -460,10 +482,11 @@ class GaitCycle:
     @property
     def features(self):
         vel_mlap = self.cop_vel_mlap
+        pos_mlap = self.cop_mlap
         return np.concatenate((vel_mlap.med, vel_mlap.ant))
 
 
-class FloorBatch:
+class FloorRecordingBatch:
     def __init__(self, floors):
         self.floors = floors
 
@@ -482,6 +505,11 @@ class FloorBatch:
         -------
         FloorBatch
         """
-        return FloorBatch(floors=[FloorRecording.from_csv(path, start=start, end=end)
-                                  for path in paths for start, end in bounds])
+        return FloorRecordingBatch(floors=[FloorRecording.from_csv(path, start=start, end=end)
+                                           for path in paths for start, end in bounds])
+
+    @property
+    def gait_cycles(self):
+        return np.hstack([floor.gait_cycles for floor in self.floors])
+
 

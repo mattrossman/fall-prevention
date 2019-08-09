@@ -343,6 +343,11 @@ function loadSliderContent(binsDaily, x, propertyTitle, propertyUnit, property) 
     const renderer = document.createElement('canvas');
     const buttonDiv = document.createElement('div');
     buttonDiv.setAttribute('id', 'buttonDiv');
+    var button = document.createElement("button");
+    button.innerHTML = "Hide Visualization";
+    button.setAttribute('id', 'button');
+    button.style.display = 'none';
+    buttonDiv.appendChild(button);
     //renderer.style.paddingTop = '15px';
     //renderer.style.minHeight = '500px';
     renderer.setAttribute('id', 'renderer');
@@ -372,7 +377,6 @@ function loadSliderContent(binsDaily, x, propertyTitle, propertyUnit, property) 
         //Show Skeleton
         segmentAnchor.onclick = function() {
 
-
             const key = segments[this.id]['time']; //unix time string for that segment
             //make segments unclickable while window is open
             for (var j = 0; j < segments.length; j++) {
@@ -389,15 +393,11 @@ function loadSliderContent(binsDaily, x, propertyTitle, propertyUnit, property) 
             });
 
             slider.slideReveal('show');
-
+            button.style.display = 'block';
             tlContent.setAttribute('class', 'ccntl-content');
             tlContainer.setAttribute('class', 'col-sm-4');
             rendererContainer.setAttribute('class', 'col-sm-8');
             threejs();
-            var button = document.createElement("button");
-            button.innerHTML = "Hide Visualization";
-            button.setAttribute('id', 'button');
-            buttonDiv.appendChild(button);
 
             button.addEventListener ("click", function() {
 

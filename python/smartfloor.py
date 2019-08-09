@@ -31,7 +31,7 @@ class BoardRecording:
     x : int
         Where the left-most tile of this board begins on the floor (each tile represents one unit)
     y : int
-        Where the top-most tile of this board begins on the floor (each tile represents one unit)
+        Where the bottom-most tile of this board begins on the floor (each tile represents one unit)
     da : xarray.DataArray
         DataArray with x, y, and time dimensions, such that the time dimension can be indexed by datetime
     hz : xarray.DataArray
@@ -66,7 +66,7 @@ class BoardRecording:
         x : int
             Where the left-most tile of this board begins on the floor (each tile represents one unit)
         y : int
-            Where the top-most tile of this board begins on the floor (each tile represents one unit)
+            Where the bottom-most tile of this board begins on the floor (each tile represents one unit)
         """
         # Extract this board's data, and remove the (now useless) board ID column
         self.df = df_floor[df_floor['board_id'] == board_id].drop(columns=['board_id'])
@@ -100,7 +100,9 @@ class BoardRecording:
         """
         return xr.DataArray(self.mapped_stream_arr(),
                             dims=['y', 'x', 'time'],
-                            coords={'time': self.df.index})
+                            coords={'time': self.df.index,
+                                    'x': np.arange(self.x, self.x + 4),
+                                    'y': np.arange(self.y, self.y + 8)[::-1]})
 
     def update_darray(self):
         """Update the internal DataArray inplace based on current DataFrame data

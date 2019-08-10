@@ -6,6 +6,7 @@ import smartfloor as sf
 directory = 'data/08-07-2019'
 num_subjects = 7
 
+"""
 # Get training and testing source data paths
 regex_test = re.compile(r'.*5_.*')
 train_paths = np.array([f'{directory}/{filename}'
@@ -27,7 +28,7 @@ points = query_cycle.cop_mlap.to_array().T.values
 
 
 sf.plot_gait_cycles(np.concatenate(([query_cycle], neighbors[:5])))
-
+"""
 
 def calculate_accuracy(i):
     # Get training and testing source data paths
@@ -107,3 +108,17 @@ with open('accuracy.p', 'rb') as a:
 
     overall_accuracy = total_accuracy(style_accuracy)
 
+
+def pickle_batch():
+    """ Make a batch of all data and save to binary """
+    paths = [f'{directory}/{filename}' for filename in os.listdir(directory)]
+    batch = sf.FloorRecordingBatch.from_csv(paths, trimmed=True)
+    _ = batch.gait_cycles  # Reify the gait cycles
+    with open('batch.p', 'wb') as f:
+        pickle.dump(batch, f)
+
+
+def unpickle_batch() -> sf.FloorRecordingBatch:
+    """ Load the saved data batch """
+    with open('batch.p', 'rb') as f:
+        return pickle.load(f)

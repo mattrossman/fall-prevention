@@ -564,22 +564,22 @@ class FloorRecordingBatch:
         self.floors = floors
 
     @staticmethod
-    def from_csv(paths: List[str], bounds: List[Tuple[datetime, datetime]] = None):
+    def from_csv(paths: List[str], *args, **kwargs):
         """Create a batch of floor recordings from a list of .csv file paths
 
         Parameters
         ----------
         paths : List[str]
             File paths to the raw smartfloor .csv recordings
-        bounds: List[Tuple[datetime, datetime]] (optional)
-
+        *args, **kwargs:
+            Arguments to be passed to FloorRecording constructor for each path
 
         Returns
         -------
-        FloorBatch
+        FloorRecordingBatch
         """
-        return FloorRecordingBatch(floors=[FloorRecording.from_csv(path, start=start, end=end)
-                                           for path in paths for start, end in bounds])
+        return FloorRecordingBatch(floors=[FloorRecording.from_csv(path, *args, **kwargs)
+                                           for path in paths])
 
     @reify
     def gait_cycles(self):

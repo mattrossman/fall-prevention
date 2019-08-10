@@ -623,7 +623,7 @@ class GaitCycleBatch:
         return np.sort(distances), GaitCycleBatch(neighbors)
 
     def query_batch(self, other: 'GaitCycleBatch'):
-        return np.array([self.query_cycle(cycle) for cycle in other])
+        return np.moveaxis(np.array([self.query_cycle(cycle) for cycle in other]), 1, 0)
 
     def partition_names(self, pattern, reverse=False):
         """Split the batch into two batches based on a naming pattern

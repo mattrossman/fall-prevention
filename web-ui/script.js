@@ -554,30 +554,24 @@ function threejs() {
 
         var pointCount = positions.length;
         jointNames = getJointNames();
-        //var pointGeo = new THREE.Geometry();
-        var skeleton = new THREE.Object3D();
+        var pointGeo = new THREE.Geometry();
         for (var i = 0; i < pointCount; i++) {
-            var geometry = new THREE.SphereGeometry(0.125);
-            var material = new THREE.MeshBasicMaterial( {color: 0x000000} );
-            var sphere = new THREE.Mesh( geometry, material );
-            sphere.name = jointNames[i];
             var x = positions[i][0][0];
             var y = positions[i][1][0];
             var z = positions[i][2][0];
-            sphere.position = v(x, y, z);
+            vec = v(x, y, z);
 
-            skeleton.children.push(sphere);
-            //pointGeo.vertices.push(v(x, y, z));
+            pointGeo.vertices.push(v(x, y, z));
             
-            //pointGeo.colors.push(new THREE.Color(0x000000));
+            pointGeo.colors.push(new THREE.Color(0x000000));
 
         }
-        //console.log(pointGeo.vertices);
-        console.log(skeleton);
+        console.log(pointGeo.vertices);
+        //console.log(0, 0, );
 
-        //var points = new THREE.Points(pointGeo, mat);
-        //console.log(points);
-        scatterPlot.add(skeleton);
+        var points = new THREE.Points(pointGeo, mat);
+        console.log(points);
+        scatterPlot.add(points);
         renderer.render(scene, camera);
 
         var controls = new THREE.OrbitControls( camera, renderer.domElement );

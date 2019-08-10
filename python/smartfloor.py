@@ -10,6 +10,21 @@ from scipy.signal import argrelmin, argrelmax
 import matplotlib.pyplot as plt
 import time
 import cv2
+import functools
+
+
+class Descriptor(object):
+    def __init__(self, func):
+        self.func = func
+
+    def __get__(self, inst, type=None):
+        val = self.func(inst)
+        setattr(inst, self.func.__name__, val)
+        return val
+
+
+def reify(func):
+    return functools.wraps(func)(Descriptor(func))
 
 
 def _df_from_csv(path) -> pd.DataFrame:
@@ -283,58 +298,58 @@ class FloorRecording:
         init_pass = _nonnegative_darray(da - self.noise)
         return self._masked_by_max(init_pass, 2).fillna(0)
 
-    @property
+    @reify
     def pressure(self):
         return self._denoise(self.samples)
 
-    @property
+    @reify
     def cop(self):
         return self._get_cop_dataset(self.pressure)
 
-    @property
+    @reify
     def cop_vel(self):
         cop = self.cop
         return (cop.shift(time=-1) - cop).rolling(time=2).mean() / (self.freq / pd.Timedelta('1s'))
 
-    @property
+    @reify
     def cop_vel_mag(self):
         vel = self.cop_vel
         return np.sqrt(np.square(vel.x) + np.square(vel.y))
 
-    @property
+    @reify
     def cop_vel_mag_roc(self):
         """Rate of change of velocity magnitude (change in speed, change in acceleration in direction of motion"""
         speed = self.cop_vel_mag
         return (speed.shift(time=-1) - speed).rolling(time=2).mean() / (self.freq / pd.Timedelta('1s'))
 
-    @property
+    @reify
     def cop_accel(self):
         vel = self.cop_vel
         return (vel.shift(time=-1) - vel).rolling(time=2).mean() / (self.freq / pd.Timedelta('1s'))
 
-    @property
+    @reify
     def cop_accel_mag(self):
         """Magnitude of the COP acceleration vector"""
         accel = self.cop_accel
         return np.sqrt(np.square(accel.x) + np.square(accel.y))
 
-    @property
+    @reify
     def cop_accel_mag_roc(self):
         """Rate of change of velocity magnitude (change in speed, change in acceleration in direction of motion"""
         accel_mag = self.cop_accel_mag
         return (accel_mag.shift(time=-1) - accel_mag).rolling(time=2).mean() / (self.freq / pd.Timedelta('1s'))
 
-    @property
+    @reify
     def cop_jerk(self):
         vel = self.cop_vel
         return (vel.shift(time=-1) - vel).rolling(time=2).mean() / (self.freq / pd.Timedelta('1s'))
 
-    @property
+    @reify
     def cop_jerk_mag(self):
         jerk = self.cop_jerk
         return np.sqrt(np.square(jerk.x) + np.square(jerk.y))
 
-    @property
+    @reify
     def _anchors(self):
         """Points along COP trajectory with minimal motion, good for marking a foot position
         """
@@ -342,7 +357,7 @@ class FloorRecording:
         ixs = argrelmin(cop_speed.values, order=3)[0]
         return cop_speed.isel(time=ixs)
 
-    @property
+    @reify
     def _weight_shifts(self):
         """ Points of highest speed increase
         """
@@ -351,13 +366,13 @@ class FloorRecording:
         speed_shifts = cop_delta_speed.isel(time=ixs)
         return speed_shifts[speed_shifts > 3]
 
-    @property
+    @reify
     def _heelstrikes(self):
         heel_dir = self.footstep_positions.reindex_like(self._weight_shifts, method='bfill')
         heel_dir = heel_dir.fillna(heel_dir.shift(time=2))  # Assume feet alternation
         return heel_dir.where(heel_dir != heel_dir.shift(time=1)).dropna('time')  # Disallow repeated values
 
-    @property
+    @reify
     def footstep_positions(self):
         """Positions of valid foot anchors along with their left/right labeling
         """
@@ -388,7 +403,7 @@ class FloorRecording:
         dir = v_stride.dot([-v_step[1], v_step[0]])
         return 'right' if dir > 0 else 'left'
 
-    @property
+    @reify
     def footstep_cycles(self):
         """Groups of 3 footsteps, starting and ending on the right foot
         """
@@ -397,7 +412,7 @@ class FloorRecording:
         cycles = xr.concat(np.array(list(cycle_groups))[:, 1], 'cycle')
         return cycles.where(cycles.isel(window=0).dir == 'right').dropna('cycle')
 
-    @property
+    @reify
     def step_triplets(self):
         """Groups of 3 footsteps, starting and ending on the right foot
         """
@@ -407,12 +422,12 @@ class FloorRecording:
         cycles = xr.concat(np.array(list(cycle_groups))[:, 1], 'cycle')
         return cycles.where(cycles.isel(window=0).dir == 'right').dropna('cycle')
 
-    @property
+    @reify
     def step_triplet_windows(self):
         return [(cycle.step_time[0].values, cycle.step_time[-1].values)
                 for _, cycle in self.step_triplets.groupby('cycle')]
 
-    @property
+    @reify
     def walk_line(self):
         """The overall straight trajectory of the subject
 
@@ -442,38 +457,38 @@ class FloorRecording:
         med, ant = rot_matrix.dot(ds[['x', 'y']].to_array().values)
         return xr.Dataset({'med': (['time'], med), 'ant': (['time'], ant)},  {'time': ds.time})
 
-    @property
+    @reify
     def cop_mlap(self):
         start, end = self.walk_line
         return self._to_mlap(self.cop - start)
 
-    @property
+    @reify
     def cop_mlap_cycles(self):
         ds = self.cop_mlap
         return [ds.sel(time=slice(*w)) for w in self.step_triplet_windows]
 
-    @property
+    @reify
     def cop_vel_mlap(self):
         return self._to_mlap(self.cop_vel)
 
-    @property
+    @reify
     def cop_vel_mlap_cycles(self):
         ds = self.cop_vel_mlap
         return [ds.sel(time=slice(*w)) for w in self.step_triplet_windows]
 
-    @property
+    @reify
     def gait_cycles(self):
         return np.array([GaitCycle(self, window, name=f'{self.name}_c{i}')
                          for i, window in enumerate(self.step_triplet_windows)])
 
-    @property
+    @reify
     def loaded_window(self):
         mag = self._denoise(self.da).sum(('x', 'y'))
         loaded_range = mag.where(mag > mag.mean(), drop=True).time.values
         return loaded_range[0], loaded_range[-1]
 
-    def trim(self, start, end):
-        """Trim the time dimension of the data array
+    def _trim(self, start, end):
+        """[DEPRECATED, MAY CAUSE SIDE EFFECTS WITH REIFY] Trim the time dimension of the data array
 
         Parameters
         ----------
@@ -496,26 +511,26 @@ class GaitCycle:
     def __repr__(self):
         return f'<GaitCycle {self.name}>'
 
-    @property
+    @reify
     def ant_scale(self):
         pos_i = self.floor.cop_mlap.interp(time=self.date_window[0])
         pos_f = self.floor.cop_mlap.interp(time=self.date_window[1])
         dist = pos_f - pos_i
         return dist.ant.item()
 
-    @property
+    @reify
     def med_scale(self):
         pos = self.floor.cop_mlap.interp(time=self.date_range)
         pos_left = pos.med.min()
         pos_right = pos.med.max()
         return max(abs(pos_left), abs(pos_right)) * 2
 
-    @property
+    @reify
     def ant_offset(self):
         pos_i = self.floor.cop_mlap.interp(time=self.date_window[0])
         return pos_i.ant.item()
 
-    @property
+    @reify
     def cop_mlap(self):
         pos = self.floor.cop_mlap.interp(time=self.date_range).drop('time')
         pos['med'] = pos.med / self.med_scale
@@ -523,30 +538,30 @@ class GaitCycle:
         pos['ant'] = pos.ant / self.ant_scale
         return pos
 
-    @property
+    @reify
     def cop_vel_mlap(self):
         vel_mlap = self.floor.cop_vel_mlap.interp(time=self.date_range).drop('time')
         vel_mlap['med'] = vel_mlap.med / self.med_scale
         vel_mlap['ant'] = vel_mlap.ant / self.ant_scale
         return vel_mlap
 
-    @property
+    @reify
     def duration(self):
         return self.date_range[-1] - self.date_range[0]
 
-    @property
+    @reify
     def features(self):
-        # vel_mlap = self.cop_vel_mlap
-        # pos_mlap = self.cop_mlap
-        # return np.concatenate((pos_mlap.ant, vel_mlap.med))
-        return self.central_moments
+        vel_mlap = self.cop_vel_mlap
+        pos_mlap = self.cop_mlap
+        return np.concatenate((pos_mlap.med, pos_mlap.ant, vel_mlap.med, vel_mlap.ant))
+        # return self.central_moments
 
-    @property
+    @reify
     def hu_moments(self):
         hu_moments = cv2.HuMoments(cv2.moments(self.cop_mlap.to_array().T.values)).flatten()
         return [-1 * np.sign(moment) * np.log10(abs(moment)) for moment in hu_moments]  # Log scale
 
-    @property
+    @reify
     def central_moments(self):
         moments = cv2.moments(self.cop_mlap.to_array().T.values)
         return [-1 * np.sign(moments[moment]) * np.log10(abs(moments[moment])) for moment in central_moments]
@@ -574,7 +589,7 @@ class FloorRecordingBatch:
         return FloorRecordingBatch(floors=[FloorRecording.from_csv(path, start=start, end=end)
                                            for path in paths for start, end in bounds])
 
-    @property
+    @reify
     def gait_cycles(self):
         return np.hstack([floor.gait_cycles for floor in self.floors])
 

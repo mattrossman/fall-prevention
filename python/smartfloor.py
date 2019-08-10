@@ -502,6 +502,10 @@ class GaitCycle:
     def __repr__(self):
         return f'<GaitCycle {self.name}>'
 
+    @property
+    def style(self):
+        return re.match(r'^\d_([^_]*)_.*', self.name).groups()[0]
+
     def _pos_dist(self, other):
         pos_diff = self.cop_mlap - other.cop_mlap
         return np.sqrt(np.square(pos_diff).med + np.square(pos_diff).ant)
@@ -585,3 +589,65 @@ class FloorRecordingBatch:
     def gait_cycles(self):
         return np.hstack([floor.gait_cycles for floor in self.floors])
 
+    @reify
+    def gait_cycle_batch(self):
+        return GaitCycleBatch(self.gait_cycles)
+
+
+class GaitCycleBatch:
+    def __init__(self, cycles):
+        self.cycles = np.array(cycles)
+
+    def __len__(self):
+        return len(self.cycles)
+
+    def __getitem__(self, index):
+        return self.cycles[index]
+
+    def __iter__(self):
+        return self.cycles.__iter__()
+
+    def query_cycle(self, other: 'GaitCycle'):
+        """ Order the gait cycles by their similarity to a query cycle
+
+        Parameters
+        ----------
+        other : GaitCycle
+            Cycle to lookup
+
+        Returns
+        -------
+        distances : List[int]
+            Distances of each neighbor from the query
+        neighbors : GaitCycleBatch
+            Cycles in this batch in ascending order of distance from the query
+        """
+        distances = np.array([cycle.dist(other) for cycle in self.cycles])
+        neighbors = self.cycles[distances.argsort()]
+        return np.sort(distances), GaitCycleBatch(neighbors)
+
+    def query_batch(self, other: 'GaitCycleBatch'):
+        return np.array([self.query_cycle(cycle) for cycle in other])
+
+    def with_style(self, style):
+        return GaitCycleBatch([cycle for cycle in self.cycles if cycle.style == style])
+
+    def partition_names(self, pattern, reverse=False):
+        """Split the batch into two batches based on a naming pattern
+
+        Parameters
+        ----------
+        pattern : str
+            Regex string pattern to match as hits
+
+        Returns
+        -------
+        hits : GaitCycleBatch
+            Cycles whose name matches the pattern
+        misses : GaitCycleBatch
+            Cycles whose name doesn't match the pattern
+        """
+        regex_hit = re.compile(pattern)
+        hits = GaitCycleBatch([cycle for cycle in self.cycles if regex_hit.match(cycle.name)])
+        misses = GaitCycleBatch([cycle for cycle in self.cycles if not regex_hit.match(cycle.name)])
+        return (hits, misses) if not reverse else (misses, hits)

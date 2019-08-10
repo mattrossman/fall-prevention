@@ -109,16 +109,20 @@ with open('accuracy.p', 'rb') as a:
     overall_accuracy = total_accuracy(style_accuracy)
 
 
-def pickle_batch():
+def pickle_cycle_batch():
     """ Make a batch of all data and save to binary """
     paths = [f'{directory}/{filename}' for filename in os.listdir(directory)]
-    batch = sf.FloorRecordingBatch.from_csv(paths, trimmed=True)
-    _ = batch.gait_cycles  # Reify the gait cycles
-    with open('batch.p', 'wb') as f:
-        pickle.dump(batch, f)
+    floor_batch = sf.FloorRecordingBatch.from_csv(paths, trimmed=True)
+    with open('cycle_batch.p', 'wb') as f:
+        pickle.dump(floor_batch.gait_cycle_batch, f)
 
 
-def unpickle_batch() -> sf.FloorRecordingBatch:
+def unpickle_cycle_batch() -> sf.GaitCycleBatch:
     """ Load the saved data batch """
-    with open('batch.p', 'rb') as f:
+    with open('cycle_batch.p', 'rb') as f:
         return pickle.load(f)
+
+
+batch = unpickle_cycle_batch()
+train, test = batch.partition_names(r'7_.*', reverse=True)
+test_slow = test.with_style('slow')

@@ -456,71 +456,195 @@ function loadSliderContent(binsDaily, x, propertyTitle, propertyUnit, property) 
 //ThreeJS Renderer
 
 function threejs() {
-    const canvas = document.getElementById('renderer');
-    const renderer = new THREE.WebGLRenderer({canvas});
 
-    //camera
-    const fov = 75;
-    const aspect = 2;  // the canvas default
-    const near = 0.1;
-    const far = 5;
-    const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
-    camera.position.z = 2;
-
-    //scene
-    const scene = new THREE.Scene();
-
-    //light
-    {
-        const color = 0xFFFFFF;
-        const intensity = 1;
-        const light = new THREE.DirectionalLight(color, intensity);
-        light.position.set(-1, 2, 4);
-        scene.add(light);
+    function loadJSON(callback) {
+        var xobj = new XMLHttpRequest();
+        xobj.overrideMimeType("application/json");
+        xobj.open('GET', 'walk_segment_1.json', true);
+        xobj.onreadystatechange = function () {
+            if (xobj.readyState == 4 && xobj.status == "200") {
+                callback(JSON.parse(xobj.responseText));
+            }
+        };
+        xobj.send(null);
     }
 
-    //box
-    const boxWidth = 1;
-    const boxHeight = 1;
-    const boxDepth = 1;
-    const geometry = new THREE.BoxGeometry(boxWidth, boxHeight, boxDepth);
-    const material = new THREE.MeshPhongMaterial({color: 0x44aa88});
-    const cube = new THREE.Mesh(geometry, material);
+    var getAnimationClip = function(json) {
 
-    scene.add(cube);
-    renderer.render(scene, camera);
 
-    //returns whether resolution needs to be changed because of window size change
-    function resizeRendererToDisplaySize(renderer) {
-        const canvas = renderer.domElement;
-        const width = canvas.clientWidth;
-        const height = canvas.clientHeight;
-        const needResize = canvas.width !== width || canvas.height !== height;
-        if (needResize) {
-          renderer.setSize(width, height, false);
+
+        var animations = []
+
+        const time_array = json['0']['0'][1];
+        const scale_arrays = json['2']['0'][2];
+        const scale_array = array_zipper(scale_arrays)
+        var tracks = [];
+        var positions = [];
+        let j = 0;
+        Object.values(json).forEach(function(kf_type, j) {
+            Object.values(kf_type).forEach(function(bones) {
+                //var kf = 0;
+                if (j == 0) {
+                    var kf = new THREE.VectorKeyframeTrack(bones[0], time_array, array_zipper(bones[2]));
+                    tracks.push(kf);
+                    positions.push(bones[2])
+                
+                } /* else if (j == 1) {
+                    kf = new THREE.QuaternionKeyframeTrack(bones[0], time_array, array_zipper(bones[2]));
+                } else {
+                    kf = new THREE.VectorKeyframeTrack(bones[0], time_array, scale_array);
+                }
+                tracks.push(kf);
+                */
+            });
+        });
+
+        const duration = time_array[time_array.length - 1]
+        const name = 'walk_1'
+
+        animations.push(new THREE.AnimationClip(name, duration, tracks));
+        console.log(animations);
+        console.log(positions);
+
+
+
+        const canvas = document.getElementById('renderer');
+        const renderer = new THREE.WebGLRenderer({canvas});
+        renderer.setClearColor(0xEEEEEE, 1.0);
+        var w = 560;
+        var h = 290;
+        renderer.setSize(w, h);
+
+        //camera
+        const fov = 45;
+        const aspect = w / h;  // the canvas default
+        const near = 1;
+        const far = 1000;
+        const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+        camera.position.z = 0;
+        camera.position.x = 1;
+        camera.lookAt(0, 0, 4);
+
+        //scene
+        const scene = new THREE.Scene();
+
+        //light
+        {
+            const color = 0xFFFFFF;
+            const intensity = 1;
+            const light = new THREE.DirectionalLight(color, intensity);
+            light.position.set(-1, 2, 4);
+            scene.add(light);
         }
-        return needResize;
-      }
 
-    //animation
-    function render(time) {
-        time *= 0.001;  // convert time to seconds
+        var scatterPlot = new THREE.Object3D();
+        scene.add(scatterPlot);
 
-        //prevent blurriness when window stretches
-        if (resizeRendererToDisplaySize(renderer)) {
-            const canvas = renderer.domElement;
-            camera.aspect = canvas.clientWidth / canvas.clientHeight;
-            camera.updateProjectionMatrix();
+
+        scatterPlot.rotation.y = 0;
+
+        var axesHelper = new THREE.AxesHelper( 1 );
+        scene.add( axesHelper );
+
+        var mat = new THREE.PointsMaterial({
+            color: 0x000000,
+            size: 0.125
+        });
+
+
+        var pointCount = positions.length;
+        jointNames = getJointNames();
+        //var pointGeo = new THREE.Geometry();
+        var skeleton = new THREE.Object3D();
+        for (var i = 0; i < pointCount; i++) {
+            var geometry = new THREE.SphereGeometry(0.125);
+            var material = new THREE.MeshBasicMaterial( {color: 0x000000} );
+            var sphere = new THREE.Mesh( geometry, material );
+            sphere.name = jointNames[i];
+            var x = positions[i][0][0];
+            var y = positions[i][1][0];
+            var z = positions[i][2][0];
+            sphere.position = v(x, y, z);
+
+            skeleton.children.push(sphere);
+            //pointGeo.vertices.push(v(x, y, z));
+            
+            //pointGeo.colors.push(new THREE.Color(0x000000));
+
         }
+        //console.log(pointGeo.vertices);
+        console.log(skeleton);
 
-        cube.rotation.x = time;
-        cube.rotation.y = time;
-
+        //var points = new THREE.Points(pointGeo, mat);
+        //console.log(points);
+        scatterPlot.add(skeleton);
         renderer.render(scene, camera);
 
-        requestAnimationFrame(render);
-      }
-    requestAnimationFrame(render);
+        var controls = new THREE.OrbitControls( camera, renderer.domElement );
+        controls.enableZoom = false;
+        controls.enablePan = false;
+        controls.target = v(positions[0][0][0], positions[0][1][0], positions[0][2][0])
+        //controls.maxAzimuthAngle = 0;
+        controls.maxZoom = 0;
+        controls.addEventListener( 'change', function(){renderer.render(scene, camera)} );
+
+        //returns whether resolution needs to be changed because of window size change
+        function resizeRendererToDisplaySize(renderer) {
+            const canvas = renderer.domElement;
+            const width = canvas.clientWidth;
+            const height = canvas.clientHeight;
+            const needResize = canvas.width !== width || canvas.height !== height;
+            if (needResize) {
+            renderer.setSize(width, height, false);
+            }
+            return needResize;
+        }
+    }
+    loadJSON(getAnimationClip)
+
+    function array_zipper(a_of_a) {
+        var zipped = [];
+        for (let i=0; i<a_of_a[0].length; i++) {
+            a_of_a.forEach(function(array) {
+                zipped.push(array[i]);
+            });
+        }
+        return zipped
+    }
+    
+    function v(x, y, z) {
+        return new THREE.Vector3(x, y, z);
+    }
+
+    function getJointNames() {
+        return [
+        'SpineBase',
+        'SpineMid',
+        'Neck',
+        'Head',
+        'ShoulderLeft',
+        'ElbowLeft',
+        'WristLeft',
+        'HandTipLeft',
+        'ShoulderRight',
+        'ElbowRight',
+        'WristRight',
+        'HandTipRight',
+        'HipLeft',
+        'KneeLeft',
+        'AnkleLeft',
+        'FootLeft',
+        'HipRight',
+        'KneeRight',
+        'AnkleRight',
+        'FootRight',
+        'SpineShoulder',
+        'HandTipLeft',
+        'ThumbLeft',
+        'HandTipRight',
+        'ThumbRight'
+        ]
+    }
 
 
 }

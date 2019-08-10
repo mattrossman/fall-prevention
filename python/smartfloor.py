@@ -9,7 +9,6 @@ import re
 from scipy.signal import argrelmin, argrelmax
 import matplotlib.pyplot as plt
 import time
-import cv2
 import functools
 
 
@@ -45,13 +44,13 @@ def plot_gait_cycles(cycles):
     for i, cycle in enumerate(cycles):
         ax = fig.add_subplot(w, n, i + 1)
         ax.axvline(0, c='r', linestyle=':')
-        ax.quiver(cycle.cop_mlap.med, cycle.cop_mlap.ant, cycle.cop_vel_mlap.med, cycle.cop_vel_mlap.ant, range(40),
+        ax.quiver(cycle.cop_mlap.med, cycle.cop_mlap.ant, cycle.cop_vel_mlap.med, cycle.cop_vel_mlap.ant, range(len(cycle)),
                    angles='xy', units='dots', width=3, pivot='mid', cmap='cool', scale=25, scale_units='xy')
         ax.set_title(cycle.name, size=10)
         ax.set_xlim(-1, 1)
 
 
-def timeit(method):
+def timeit(method, custom=''):
     def timed(*args, **kw):
         ts = time.time()
         result = method(*args, **kw)
@@ -101,6 +100,7 @@ class BoardRecording:
     ]
     width, height = 4, 8
 
+    @timeit
     def __init__(self, df_floor: pd.DataFrame, board_id: int, x: int, y: int):
         """
         Parameters
@@ -493,11 +493,25 @@ class GaitCycle:
     def __init__(self, floor, window, name=None):
         self.floor = floor
         self.date_window = window
-        self.date_range = pd.date_range(*window, periods=40)
+        self.date_range = pd.date_range(*window, periods=len(self))
         self.name = name
+
+    def __len__(self):
+        return 40
 
     def __repr__(self):
         return f'<GaitCycle {self.name}>'
+
+    def _pos_dist(self, other):
+        pos_diff = self.cop_mlap - other.cop_mlap
+        return np.sqrt(np.square(pos_diff).med + np.square(pos_diff).ant)
+
+    def _vel_dist(self, other):
+        vel_diff = self.cop_vel_mlap - other.cop_vel_mlap
+        return np.sqrt(np.square(vel_diff).med + np.square(vel_diff).ant)
+
+    def dist(self, other):
+        return self._pos_dist(other).sum() + self._vel_dist(other).mean()
 
     @reify
     def ant_scale(self):
@@ -539,20 +553,10 @@ class GaitCycle:
 
     @reify
     def features(self):
+        """ DEPRECATED """
         vel_mlap = self.cop_vel_mlap
         pos_mlap = self.cop_mlap
         return np.concatenate((pos_mlap.med, pos_mlap.ant, vel_mlap.med, vel_mlap.ant))
-        # return self.central_moments
-
-    @reify
-    def hu_moments(self):
-        hu_moments = cv2.HuMoments(cv2.moments(self.cop_mlap.to_array().T.values)).flatten()
-        return [-1 * np.sign(moment) * np.log10(abs(moment)) for moment in hu_moments]  # Log scale
-
-    @reify
-    def central_moments(self):
-        moments = cv2.moments(self.cop_mlap.to_array().T.values)
-        return [-1 * np.sign(moments[moment]) * np.log10(abs(moments[moment])) for moment in central_moments]
 
 
 class FloorRecordingBatch:
@@ -581,5 +585,3 @@ class FloorRecordingBatch:
     def gait_cycles(self):
         return np.hstack([floor.gait_cycles for floor in self.floors])
 
-
-central_moments = ['mu20', 'mu11', 'mu02', 'mu30', 'mu21', 'mu12', 'mu03']

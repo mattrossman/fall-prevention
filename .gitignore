@@ -7,6 +7,7 @@
 *.avi
 *.csv
 *.zip
+*.p
 **.xef
 node_modules
 package-lock.json

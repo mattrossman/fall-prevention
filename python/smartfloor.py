@@ -487,18 +487,6 @@ class FloorRecording:
         loaded_range = mag.where(mag > mag.mean(), drop=True).time.values
         return loaded_range[0], loaded_range[-1]
 
-    def _trim(self, start, end):
-        """[DEPRECATED, MAY CAUSE SIDE EFFECTS WITH REIFY] Trim the time dimension of the data array
-
-        Parameters
-        ----------
-        start : str, datetime
-        end : str, datetime
-            The bounds to slice between, can be formatted as a string for pandas to parse
-        """
-        self.samples = self.samples.sel(time=slice(pd.Timestamp(start), pd.Timestamp(end)))
-        return self
-
 
 class GaitCycle:
     """Gait cycle normalized to a fixed number of samples"""

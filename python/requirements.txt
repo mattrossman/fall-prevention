@@ -5,3 +5,4 @@ xarray
 scipy
 Pillow
 pyquaternion
+opencv

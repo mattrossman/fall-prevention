@@ -7,6 +7,9 @@ import pandas as pd
 import xarray as xr
 import re
 from scipy.signal import argrelmin, argrelmax
+import matplotlib.pyplot as plt
+import time
+import cv2
 
 
 def _df_from_csv(path) -> pd.DataFrame:
@@ -18,6 +21,33 @@ def _df_from_csv(path) -> pd.DataFrame:
 
 def _nonnegative_darray(da: xr.DataArray):
     return da.where(da > 0).fillna(0)
+
+
+def plot_gait_cycles(cycles):
+    fig = plt.figure(figsize=(15,7))
+    n = len(cycles)
+    w = 1
+    for i, cycle in enumerate(cycles):
+        ax = fig.add_subplot(w, n, i + 1)
+        ax.axvline(0, c='r', linestyle=':')
+        ax.quiver(cycle.cop_mlap.med, cycle.cop_mlap.ant, cycle.cop_vel_mlap.med, cycle.cop_vel_mlap.ant, range(40),
+                   angles='xy', units='dots', width=3, pivot='mid', cmap='cool', scale=25, scale_units='xy')
+        ax.set_title(cycle.name, size=10)
+        ax.set_xlim(-1, 1)
+
+
+def timeit(method):
+    def timed(*args, **kw):
+        ts = time.time()
+        result = method(*args, **kw)
+        te = time.time()
+        if 'log_time' in kw:
+            name = kw.get('log_name', method.__name__.upper())
+            kw['log_time'][name] = int((te - ts) * 1000)
+        else:
+            print('%r  %2.2f ms' % (method.__name__, (te - ts) * 1000))
+        return result
+    return timed
 
 
 class BoardRecording:
@@ -150,6 +180,7 @@ class FloorRecording:
 
     board_map = [19, 17, 21, 18]
 
+    @timeit
     def __init__(self, df: pd.DataFrame, freq='40ms', start=None, end=None, name=None, trimmed=False):
         """
         Parameters
@@ -432,7 +463,7 @@ class FloorRecording:
 
     @property
     def gait_cycles(self):
-        return np.array([GaitCycle(self, window, name=f'{self.name}_cycle{i}')
+        return np.array([GaitCycle(self, window, name=f'{self.name}_c{i}')
                          for i, window in enumerate(self.step_triplet_windows)])
 
     @property
@@ -459,21 +490,45 @@ class GaitCycle:
     def __init__(self, floor, window, name=None):
         self.floor = floor
         self.date_window = window
-        self.date_range = pd.date_range(*window, periods=20)
+        self.date_range = pd.date_range(*window, periods=40)
         self.name = name
 
     def __repr__(self):
         return f'<GaitCycle {self.name}>'
 
     @property
-    def cop_vel_mlap(self):
-        return self.floor.cop_vel_mlap.interp(time=self.date_range).drop('time')
+    def ant_scale(self):
+        pos_i = self.floor.cop_mlap.interp(time=self.date_window[0])
+        pos_f = self.floor.cop_mlap.interp(time=self.date_window[1])
+        dist = pos_f - pos_i
+        return dist.ant.item()
+
+    @property
+    def med_scale(self):
+        pos = self.floor.cop_mlap.interp(time=self.date_range)
+        pos_left = pos.med.min()
+        pos_right = pos.med.max()
+        return max(abs(pos_left), abs(pos_right)) * 2
+
+    @property
+    def ant_offset(self):
+        pos_i = self.floor.cop_mlap.interp(time=self.date_window[0])
+        return pos_i.ant.item()
 
     @property
     def cop_mlap(self):
         pos = self.floor.cop_mlap.interp(time=self.date_range).drop('time')
-        pos['ant'] = pos.ant - pos.ant.isel(time=0)
+        pos['med'] = pos.med / self.med_scale
+        pos['ant'] = pos.ant - self.ant_offset
+        pos['ant'] = pos.ant / self.ant_scale
         return pos
+
+    @property
+    def cop_vel_mlap(self):
+        vel_mlap = self.floor.cop_vel_mlap.interp(time=self.date_range).drop('time')
+        vel_mlap['med'] = vel_mlap.med / self.med_scale
+        vel_mlap['ant'] = vel_mlap.ant / self.ant_scale
+        return vel_mlap
 
     @property
     def duration(self):
@@ -481,9 +536,20 @@ class GaitCycle:
 
     @property
     def features(self):
-        vel_mlap = self.cop_vel_mlap
-        pos_mlap = self.cop_mlap
-        return np.concatenate((vel_mlap.med, vel_mlap.ant))
+        # vel_mlap = self.cop_vel_mlap
+        # pos_mlap = self.cop_mlap
+        # return np.concatenate((pos_mlap.ant, vel_mlap.med))
+        return self.central_moments
+
+    @property
+    def hu_moments(self):
+        hu_moments = cv2.HuMoments(cv2.moments(self.cop_mlap.to_array().T.values)).flatten()
+        return [-1 * np.sign(moment) * np.log10(abs(moment)) for moment in hu_moments]  # Log scale
+
+    @property
+    def central_moments(self):
+        moments = cv2.moments(self.cop_mlap.to_array().T.values)
+        return [-1 * np.sign(moments[moment]) * np.log10(abs(moments[moment])) for moment in central_moments]
 
 
 class FloorRecordingBatch:
@@ -513,3 +579,4 @@ class FloorRecordingBatch:
         return np.hstack([floor.gait_cycles for floor in self.floors])
 
 
+central_moments = ['mu20', 'mu11', 'mu02', 'mu30', 'mu21', 'mu12', 'mu03']

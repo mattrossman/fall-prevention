@@ -123,6 +123,16 @@ def unpickle_cycle_batch() -> sf.GaitCycleBatch:
         return pickle.load(f)
 
 
+def cycle_style(cycle) -> str:
+    """Extract the gait style string (e.g 'normal', 'lhob') from a data file path"""
+    return re.match(r'^\d_([^_]*)_.*', cycle.name).groups()[0]
+
+
+def cycles_with_style(cycles: sf.GaitCycleBatch, style: str) -> sf.GaitCycleBatch:
+    """Filter a batch of cycles by a gait style string"""
+    return sf.GaitCycleBatch([cycle for cycle in cycles if cycle_style(cycle) == style])
+
+
 batch = unpickle_cycle_batch()
 train, test = batch.partition_names(r'7_.*', reverse=True)
-test_slow = test.with_style('slow')
+test_slow = cycles_with_style(test, 'slow')

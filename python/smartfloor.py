@@ -502,10 +502,6 @@ class GaitCycle:
     def __repr__(self):
         return f'<GaitCycle {self.name}>'
 
-    @property
-    def style(self):
-        return re.match(r'^\d_([^_]*)_.*', self.name).groups()[0]
-
     def _pos_dist(self, other):
         pos_diff = self.cop_mlap - other.cop_mlap
         return np.sqrt(np.square(pos_diff).med + np.square(pos_diff).ant)
@@ -628,9 +624,6 @@ class GaitCycleBatch:
 
     def query_batch(self, other: 'GaitCycleBatch'):
         return np.array([self.query_cycle(cycle) for cycle in other])
-
-    def with_style(self, style):
-        return GaitCycleBatch([cycle for cycle in self.cycles if cycle.style == style])
 
     def partition_names(self, pattern, reverse=False):
         """Split the batch into two batches based on a naming pattern

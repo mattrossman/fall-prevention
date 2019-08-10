@@ -77,5 +77,39 @@ def plot_motion_similarity():
     # ax2.set_xlim(-0.5, 0.5)
 
 
+def total_style_accuracy(style):
+    d = {}
+    d.update({'style': style})
+    total = 0
+    correct = 0
+    for participant in participants:
+        total = total + participant[style][1]['total']
+        correct = correct + participant[style][1]['total_correct']
+    d.update({'total': total})
+    d.update({'total_correct': correct})
+    d.update({'accuracy': str((correct / total) * 100) + '%'})
+    return d
+
+
+def total_accuracy(styles_a):
+    total = 0
+    correct = 0
+    for style in styles_a:
+        total = total + style['total']
+        correct = correct + style['total_correct']
+    return correct / total
+
+
 # plot_motion_similarity()
-participants = [calculate_accuracy(i) for i in range(1, num_subjects + 1)]
+# participants = [calculate_accuracy(i) for i in range(1, num_subjects + 1)]
+# pickle.dump(participants, open('accuracy.p', 'wb'))
+a = open('accuracy.p', 'rb')
+participants = pickle.load(a)
+a.close()
+
+with open('accuracy.p', 'rb') as a:
+    styles = ['normal','slow','hunch','steppage','left_hobble','right_hobble']
+    style_accuracy = [total_style_accuracy(style) for style in styles]
+
+    overall_accuracy = total_accuracy(style_accuracy)
+

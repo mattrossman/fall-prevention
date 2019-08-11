@@ -296,7 +296,7 @@ class FloorRecording:
 
     def _denoise(self, da: xr.DataArray):
         init_pass = _nonnegative_darray(da - self.noise)
-        return self._masked_by_max(init_pass, 2).fillna(0)
+        return self._masked_by_max(init_pass, 3).fillna(0)
 
     @reify
     def pressure(self):

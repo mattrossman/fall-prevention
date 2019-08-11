@@ -8,17 +8,17 @@ from matplotlib.gridspec import GridSpec
 
 from kinect import KinectRecording
 from smartfloor import FloorRecording
-from segments import time_sync as walk_segments
+# from segments import time_sync as walk_segments
 
-segment = walk_segments[2]
+# segment = walk_segments[2]  # TODO: Fix duplicated footsteps from data
 
 """ SET UP SOURCE DATA """
 framerate_hz = 25
 smoothing = 10
 frame_delay = 1000/framerate_hz
 window = int(framerate_hz / 25 * smoothing)
-kr = KinectRecording(segment['rgb_path'])
-floor = FloorRecording.from_csv('data/08-07-2019/2_normal_1.csv', freq=pd.Timedelta(frame_delay, 'ms'), trimmed=True)
+kr = KinectRecording('data/time-sync-walk-1/rgb')
+floor = FloorRecording.from_csv('data/time-sync-walk-1/smartfloor.csv', freq=pd.Timedelta(frame_delay, 'ms'), trimmed=True)
 samples = pd.DatetimeIndex(floor.samples.time.values)
 
 """ CACHE SOME VARIABLES """

@@ -78,7 +78,7 @@ def result_entries_generator(batch):
             best_match_style = cycle_style(neighbors[:, 0])  # Style of the top match for each cycle
             num_correct = np.count_nonzero(best_match_style == style)
             print(f'Participant {pid + 1} {style}: {num_correct} / {len(test_cycles)} = {num_correct / len(test_cycles) * 100:.0f}%')
-            yield {'pid': pid, 'style': style, 'correct': num_correct, 'total': len(test_cycles)}
+            yield {'pid': pid + 1, 'style': style, 'correct': num_correct, 'total': len(test_cycles)}
 
 
 def pickle_results_df(batch=None, df=None, path='df_results.p') -> pd.DataFrame:

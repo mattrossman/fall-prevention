@@ -2,15 +2,11 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.gridspec import GridSpec
 
-from segments import time_sync as walk_segments
 from smartfloor import FloorRecording
 
-segment = walk_segments[1]
 
 """ SET UP SOURCE DATA """
-framerate_hz = 25
-frame_delay = 1000/framerate_hz
-floor = FloorRecording.from_csv(segment['pressure_path'], freq=pd.Timedelta(frame_delay, 'ms'), start=segment['start'], end=segment['end'])
+floor = FloorRecording.from_csv('data/time-sync-walk-2/smartfloor.csv', trimmed=True)
 sample_index = pd.DatetimeIndex(floor.samples.time.values)
 
 
@@ -30,12 +26,9 @@ def plot_motion_similarity():
     cycle = cycles[1]
     cycle_cop = cop.sel(time=slice(*cycle.date_window))
     cycle_cop_vel = floor.cop_vel.sel(time=slice(*cycle.date_window))
-    cycle_cop_mlap = floor.cop_mlap.sel(time=slice(*cycle.date_window))
-    cycle_cop_vel_mlap = floor.cop_vel_mlap.sel(time=slice(*cycle.date_window))
     gridspec = GridSpec(1, 2, width_ratios=[2, 1])
     ax1 = fig.add_subplot(gridspec.new_subplotspec((0, 0)))
     ax2 = fig.add_subplot(gridspec.new_subplotspec((0, 1)))
-
 
     """ LEFT PLOT """
     ax1.plot(*zip(start.to_array(), end.to_array()), c='r', linestyle=':')
@@ -80,3 +73,20 @@ def plot_step_detection():
     for strike in floor._heelstrikes.dir:
         ax2.axvline(strike.time.values, c='gray', linestyle=':')
     plt.setp(ax2.xaxis.get_majorticklabels(), rotation='horizontal', ha='center', size=6)
+
+
+def plot_interpolation():
+    fig = plt.figure(figsize=(10,2))
+    for i, board in enumerate(floor.boards):
+        plt.axhline(3 - i, linewidth=1, c=f'C{3 - i}')
+        plt.scatter(board.da.time.values, [3 - i] * board.da.time.values.size, c=f'C{3 - i}')
+
+    plt.yticks(range(4), [board.id for board in floor.boards[::-1]])
+
+    for time in floor.samples.time:
+        plt.axvline(time.values, c='k', linestyle=':')
+
+    start = 50
+    offset = pd.Timedelta(10, 'ms')
+    plt.xlim(floor.da.time[start].values + offset, floor.da.time[start + 20].values - offset)
+    plt.ylim(-0.5, 3.5)

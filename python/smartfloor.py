@@ -317,9 +317,22 @@ class FloorRecording:
         return np.sqrt(np.square(vel.x) + np.square(vel.y))
 
     @reify
+    def cop_vel_mag_smoothed(self):
+        return self.cop_vel_mag.rolling(time=10, center=True).mean().dropna('time')
+
+    @reify
     def cop_vel_mag_roc(self):
         """Rate of change of velocity magnitude (change in speed, change in acceleration in direction of motion"""
         speed = self.cop_vel_mag
+        return (speed.shift(time=-1) - speed).rolling(time=2).mean() / (self.freq / pd.Timedelta('1s'))
+
+    @reify
+    def cop_vel_mag_roc_smoothed(self):
+        return self.cop_vel_mag_roc.rolling(time=10, center=True).mean().dropna('time')
+
+    @reify
+    def cop_vel_mag_roc_smoothed2(self):
+        speed = self.cop_vel_mag_smoothed
         return (speed.shift(time=-1) - speed).rolling(time=2).mean() / (self.freq / pd.Timedelta('1s'))
 
     @reify
@@ -335,7 +348,7 @@ class FloorRecording:
 
     @reify
     def cop_accel_mag_roc(self):
-        """Rate of change of velocity magnitude (change in speed, change in acceleration in direction of motion"""
+        """Rate of change of acceleration magnitude"""
         accel_mag = self.cop_accel_mag
         return (accel_mag.shift(time=-1) - accel_mag).rolling(time=2).mean() / (self.freq / pd.Timedelta('1s'))
 
@@ -353,32 +366,37 @@ class FloorRecording:
     def _anchors(self):
         """Points along COP trajectory with minimal motion, good for marking a foot position
         """
-        cop_speed = self.cop_vel_mag.rolling(time=10, center=True).mean().dropna('time')
-        ixs = argrelmin(cop_speed.values, order=3)[0]
+        cop_speed = self.cop_vel_mag_smoothed
+        ixs = argrelmin(cop_speed.values, order=5)[0]
         return cop_speed.isel(time=ixs)
 
     @reify
     def _weight_shifts(self):
-        """ Points of highest speed increase
+        """ Points of highest speed increase, contenders for heel strikes
         """
-        cop_delta_speed = self.cop_vel_mag_roc.rolling(time=3, center=True).mean().dropna('time')
-        ixs = argrelmax(cop_delta_speed.values, order=3)[0]
+        cop_delta_speed = self.cop_vel_mag_roc_smoothed
+        ixs = argrelmax(cop_delta_speed.values, order=5)[0]
         speed_shifts = cop_delta_speed.isel(time=ixs)
         return speed_shifts[speed_shifts > 3]
 
     @reify
-    def _heelstrikes(self):
+    def heelstrikes(self):
         heel_dir = self.footstep_positions.reindex_like(self._weight_shifts, method='bfill')
         heel_dir = heel_dir.fillna(heel_dir.shift(time=2))  # Assume feet alternation
         return heel_dir.where(heel_dir != heel_dir.shift(time=1)).dropna('time')  # Disallow repeated values
 
     @reify
+    def extrema_markers(self):
+        """Dataset containing the sequence of possible anchors and heelstrikes"""
+        return xr.Dataset({'anchors': self._anchors, 'heels': self._weight_shifts})
+
+    @reify
     def footstep_positions(self):
         """Positions of valid foot anchors along with their left/right labeling
         """
-        ds = xr.Dataset({'anchors': self._anchors, 'heels': self._weight_shifts})
-        valid_anchors = np.logical_and(ds.anchors.notnull(), ds.heels.shift(time=-1).notnull())
-        steps = self.cop.sel(time=ds.anchors[valid_anchors].time)
+        ds = self.extrema_markers
+        valid_anchors = np.logical_not(np.logical_and(ds.anchors.notnull(),  ds.anchors.shift(time=-1).notnull()))
+        steps = self.cop.sel(time=ds.anchors[valid_anchors].dropna('time').time)
         return steps.assign(dir=FloorRecording._step_dirs(steps))
 
     @staticmethod
@@ -405,7 +423,7 @@ class FloorRecording:
 
     @reify
     def footstep_cycles(self):
-        """Groups of 3 footsteps, starting and ending on the right foot
+        """Groups of 3 support positions, starting and ending on the right foot
         """
         footsteps = self.footstep_positions
         cycle_groups = footsteps.rolling(time=3).construct('window').dropna('time').groupby('time')
@@ -413,19 +431,20 @@ class FloorRecording:
         return cycles.where(cycles.isel(window=0).dir == 'right').dropna('cycle')
 
     @reify
-    def step_triplets(self):
-        """Groups of 3 footsteps, starting and ending on the right foot
+    def heelstrike_triplets(self):
+        """Groups of 3 heel strikes, starting and ending on the right foot
         """
-        heels = self._heelstrikes
+        heels = self.heelstrikes
         heels = heels.assign(step_time=heels.time)  # The time coordinates will not be so useful later
         cycle_groups = heels.rolling(time=3).construct('window').dropna('time').groupby('time')
         cycles = xr.concat(np.array(list(cycle_groups))[:, 1], 'cycle')
         return cycles.where(cycles.isel(window=0).dir == 'right').dropna('cycle')
 
     @reify
-    def step_triplet_windows(self):
+    def heelstrike_triplet_windows(self):
+        """A list of the start and end times of heelstrike triplet (gait cycle)"""
         return [(cycle.step_time[0].values, cycle.step_time[-1].values)
-                for _, cycle in self.step_triplets.groupby('cycle')]
+                for _, cycle in self.heelstrike_triplets.groupby('cycle')]
 
     @reify
     def walk_line(self):
@@ -465,7 +484,7 @@ class FloorRecording:
     @reify
     def cop_mlap_cycles(self):
         ds = self.cop_mlap
-        return [ds.sel(time=slice(*w)) for w in self.step_triplet_windows]
+        return [ds.sel(time=slice(*w)) for w in self.heelstrike_triplet_windows]
 
     @reify
     def cop_vel_mlap(self):
@@ -474,12 +493,12 @@ class FloorRecording:
     @reify
     def cop_vel_mlap_cycles(self):
         ds = self.cop_vel_mlap
-        return [ds.sel(time=slice(*w)) for w in self.step_triplet_windows]
+        return [ds.sel(time=slice(*w)) for w in self.heelstrike_triplet_windows]
 
     @reify
     def gait_cycles(self):
         return np.array([GaitCycle(self, window, name=f'{self.name}_c{i}')
-                         for i, window in enumerate(self.step_triplet_windows)])
+                         for i, window in enumerate(self.heelstrike_triplet_windows)])
 
     @reify
     def loaded_window(self):

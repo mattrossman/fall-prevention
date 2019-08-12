@@ -17,8 +17,10 @@ framerate_hz = 25
 smoothing = 10
 frame_delay = 1000/framerate_hz
 window = int(framerate_hz / 25 * smoothing)
-kr = KinectRecording('data/time-sync-walk-1/rgb')
-floor = FloorRecording.from_csv('data/time-sync-walk-1/smartfloor.csv', freq=pd.Timedelta(frame_delay, 'ms'), trimmed=True)
+kr = KinectRecording('data/time-sync-walk-2/Color')
+# floor = FloorRecording.from_csv('data/time-sync-walk-4/smartfloor.csv', freq=pd.Timedelta(frame_delay, 'ms'), trimmed=True)
+floor = FloorRecording.from_csv('data/08-07-2019/7_rhob_1.csv', freq=pd.Timedelta(frame_delay, 'ms'), trimmed=True)
+
 samples = pd.DatetimeIndex(floor.samples.time.values)
 
 """ CACHE SOME VARIABLES """
@@ -85,27 +87,31 @@ start_mid, end_mid = floor.walk_line
 ax2.plot([start_mid.x, end_mid.x], [start_mid.y, end_mid.y], c='r')
 
 # BOTTOM
-floor.cop_vel_mag.plot(ax=ax3)
-(floor.cop_vel_mag_roc / 20).plot(ax=ax3)
-(floor.cop_accel_mag_roc / 100).rolling(time=10).mean().plot(ax=ax3)
+floor.cop_vel_mag_smoothed.plot(ax=ax3)
+(floor.cop_vel_mag_roc_smoothed / 20).plot(ax=ax3)
+(floor.cop_vel_mag_roc_smoothed2 / 20).plot(ax=ax3)
+# (floor.cop_accel_mag_roc / 100).rolling(time=10).mean().plot(ax=ax3)
 scrub_line = ax3.axvline(samples[0], c='k')
-for step_time in steps.time.values:
-    ax3.axvline(step_time, c='gray', linestyle=':')
-for strike in floor._heelstrikes.dir:
-    ax3.axvline(strike.time.values, c=('r' if strike.item() == 'right' else 'b'), linestyle='--')
+for time in floor._anchors.time.values:
+    ax3.axvline(time, c='gray', linestyle=':')
+for time in floor._weight_shifts.time.values:
+    ax3.axvline(time, c='k')
+# for strike in floor._heelstrikes.dir:
+#     ax3.axvline(strike.time.values, c=('r' if strike.item() == 'right' else 'b'), linestyle='--')
 plt.setp(ax3.xaxis.get_majorticklabels(), rotation='horizontal', ha='center', size=6)
 
 # VERTICAL
-ax4.plot(cop_mlap.med, cop_mlap.time.values)
-ax4.plot(cop_vel_mlap.med / 5, cop_vel_mlap.time.values)
+ax4.quiver(cop_mlap.med, cop_mlap.ant, cop_vel_mlap.med, cop_vel_mlap.ant, angles='xy', scale_units='xy', scale=25)
+# ax4.plot(cop_mlap.med, cop_mlap.time.values)
+# ax4.plot(cop_vel_mlap.med / 5, cop_vel_mlap.time.values)
 ax4.axvline(0, c='k')
-ax4.axis(ymin=samples[0], ymax=samples[-1])
+# ax4.axis(ymin=samples[0], ymax=samples[-1])
 plt.setp(ax4.yaxis.get_majorticklabels(), rotation='vertical', va='center', size=6)
 # ax4.set_axis_off()
-scrub_line_v = ax4.axhline(samples[0], c='k')
+scrub_line_v = ax4.axhline(0, c='k')
 
-for step_time in steps.time.values:
-    ax4.axhline(step_time, c='gray', linestyle=':')
+# for step_time in steps.time.values:
+#     ax4.axhline(step_time, c='gray', linestyle=':')
 
 
 plt.tight_layout(pad=0, w_pad=0.4)

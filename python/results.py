@@ -12,13 +12,13 @@ The main items of interest are the batch of all gait cycles and the results tabl
 
 If they have not yet been pickled you should do so with:
 
-    batch = pickle_cycle_batch()
-    pickle_results_df(batch)
+    batch = pickle_batch()
+    df = pickle_df_results(batch)
 
 You can access them later with:
 
-    batch = unpickle_cycle_batch()
-    df = unpickle_results_df()
+    batch = unpickle_batch()
+    df = unpickle_df_results()
 
 You can then look at some simple analytics of the results with:
 
@@ -28,7 +28,7 @@ You can then look at some simple analytics of the results with:
 """
 
 
-def pickle_cycle_batch(path='cycle_batch.p') -> sf.GaitCycleBatch:
+def pickle_batch(path='cycle_batch.p') -> sf.GaitCycleBatch:
     """ Make a batch of all data and save to binary """
     paths = [f'{directory}/{filename}' for filename in os.listdir(directory)]
     floor_batch = sf.FloorRecordingBatch.from_csv(paths, trimmed=True)
@@ -39,7 +39,7 @@ def pickle_cycle_batch(path='cycle_batch.p') -> sf.GaitCycleBatch:
     return cycle_batch
 
 
-def unpickle_cycle_batch(path='cycle_batch.p') -> sf.GaitCycleBatch:
+def unpickle_batch(path='cycle_batch.p') -> sf.GaitCycleBatch:
     """ Load the saved data batch """
     with open(path, 'rb') as f:
         return pickle.load(f)
@@ -81,7 +81,7 @@ def result_entries_generator(batch):
             yield {'pid': pid + 1, 'style': style, 'correct': num_correct, 'total': len(test_cycles)}
 
 
-def pickle_results_df(batch=None, df=None, path='df_results.p') -> pd.DataFrame:
+def pickle_df_results(batch=None, df=None, path='df_results.p') -> pd.DataFrame:
     """ Build a DataFrame of results if one is not provided and serialize it to a file"""
     if batch is None and df is None:
         raise ValueError('You must provide either a GaitCycleBatch to generate from, or a DataFrame to serialize')
@@ -93,7 +93,7 @@ def pickle_results_df(batch=None, df=None, path='df_results.p') -> pd.DataFrame:
     return df
 
 
-def unpickle_results_df(path='df_results.p') -> pd.DataFrame:
+def unpickle_df_results(path='df_results.p') -> pd.DataFrame:
     """ Retrieve a serialized results DataFrame"""
     with open(path, 'rb') as f:
         return pickle.load(f)
@@ -101,14 +101,14 @@ def unpickle_results_df(path='df_results.p') -> pd.DataFrame:
 
 def res_style_accuracy(df) -> pd.Series:
     """ Overall accuracy measures for each gait style"""
-    df['accuracy'] = df.correct / df.total
-    return df.groupby('style')['accuracy'].mean()
+    grouped = df.groupby('style')
+    return grouped.correct.sum() / grouped.total.sum()
 
 
 def res_participant_accuracy(df) -> pd.Series:
     """ Overall accuracy measures for each participant"""
-    df['accuracy'] = df.correct / df.total
-    return df.groupby('pid')['accuracy'].mean()
+    grouped = df.groupby('pid')
+    return grouped.correct.sum() / grouped.total.sum()
 
 
 def res_overall_accuracy(df) -> float:

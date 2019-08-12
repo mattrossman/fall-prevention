@@ -56,7 +56,7 @@ def cycles_with_style(cycles: sf.GaitCycleBatch, style: str) -> sf.GaitCycleBatc
     return sf.GaitCycleBatch([cycle for cycle in cycles if cycle_style(cycle) == style])
 
 
-def result_entries_generator(batch):
+def result_entries_generator(batch, *args, **kwargs):
     """
     Generate dictionaries representing the results of one style of cycles of one participant against all styles of
     cycles of all other participant
@@ -74,18 +74,18 @@ def result_entries_generator(batch):
         train, test = batch.partition_names(rf'{pid + 1}_.*', reverse=True)
         for style in ['normal', 'slow', 'hunch', 'stppg', 'lhob', 'rhob']:
             test_cycles = cycles_with_style(test, style)
-            dist, neighbors = train.query_batch(test_cycles)
+            dist, neighbors = train.query_batch(test_cycles, *args, **kwargs)
             best_match_style = cycle_style(neighbors[:, 0])  # Style of the top match for each cycle
             num_correct = np.count_nonzero(best_match_style == style)
             print(f'Participant {pid + 1} {style}: {num_correct} / {len(test_cycles)} = {num_correct / len(test_cycles) * 100:.0f}%')
             yield {'pid': pid + 1, 'style': style, 'correct': num_correct, 'total': len(test_cycles)}
 
 
-def pickle_df_results(batch=None, df=None, path='df_results.p') -> pd.DataFrame:
+def pickle_df_results(batch=None, df=None, path='df_results.p', *args, **kwargs) -> pd.DataFrame:
     """ Build a DataFrame of results if one is not provided and serialize it to a file"""
     if batch is None and df is None:
         raise ValueError('You must provide either a GaitCycleBatch to generate from, or a DataFrame to serialize')
-    df = pd.DataFrame(result_entries_generator(batch),
+    df = pd.DataFrame(result_entries_generator(batch, *args, **kwargs),
                       columns=['pid', 'style', 'correct', 'total']) if df is None else df
     with open(path, 'wb') as f:
         pickle.dump(df, f)

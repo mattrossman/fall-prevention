@@ -10,6 +10,7 @@ from scipy.signal import argrelmin, argrelmax
 import matplotlib.pyplot as plt
 import time
 import functools
+import similaritymeasures
 
 
 class Descriptor(object):
@@ -531,8 +532,18 @@ class GaitCycle:
         vel_diff = self.cop_vel_mlap - other.cop_vel_mlap
         return np.sqrt(np.square(vel_diff).med + np.square(vel_diff).ant)
 
-    def dist(self, other):
+    def dist_weighted_diff(self, other):
         return self._pos_dist(other).sum() + self._vel_dist(other).mean()
+
+    def dist_euclid_all(self, other):
+        f1, f2 = self.features, other.features
+        return np.sqrt(np.sum(np.square(f2 - f1)))
+
+    def dist_frechet(self, other):
+        dist_pos = similaritymeasures.frechet_dist(self.cop_mlap.to_array().T, other.cop_mlap.to_array().T)
+        # dist_vel = similaritymeasures.frechet_dist(self.cop_mlap.to_array().T, other.cop_mlap.to_array().T)
+        print(f'{self} is {dist_pos:.2f} from {other}')
+        return dist_pos
 
     @reify
     def ant_scale(self):
@@ -624,12 +635,14 @@ class GaitCycleBatch:
     def __iter__(self):
         return self.cycles.__iter__()
 
-    def query_cycle(self, other: 'GaitCycle'):
+    def query_cycle(self, other: 'GaitCycle', metric='weighted-diff'):
         """ Order the gait cycles by their similarity to a query cycle
 
         Parameters
         ----------
         other : GaitCycle
+            Cycle to lookup
+        metric : str
             Cycle to lookup
 
         Returns
@@ -639,12 +652,19 @@ class GaitCycleBatch:
         neighbors : GaitCycleBatch
             Cycles in this batch in ascending order of distance from the query
         """
-        distances = np.array([cycle.dist(other) for cycle in self.cycles])
+        metric_dist = {
+            'weighted-diff': other.dist_weighted_diff,
+            'euclid': other.dist_euclid_all,
+            'frechet': other.dist_frechet
+        }[metric]
+        vec_f = np.vectorize(metric_dist)
+        distances = vec_f(self.cycles)
+        distances = [metric_dist(cycle) for cycle in self.cycles]
         neighbors = self.cycles[distances.argsort()]
         return np.sort(distances), GaitCycleBatch(neighbors)
 
-    def query_batch(self, other: 'GaitCycleBatch'):
-        return np.moveaxis(np.array([self.query_cycle(cycle) for cycle in other]), 1, 0)
+    def query_batch(self, other: 'GaitCycleBatch', *args, **kwargs):
+        return np.moveaxis(np.array([self.query_cycle(cycle, *args, **kwargs) for cycle in other]), 1, 0)
 
     def partition_names(self, pattern, reverse=False):
         """Split the batch into two batches based on a naming pattern

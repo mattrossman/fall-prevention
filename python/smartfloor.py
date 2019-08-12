@@ -377,7 +377,7 @@ class FloorRecording:
         cop_delta_speed = self.cop_vel_mag_roc_smoothed
         ixs = argrelmax(cop_delta_speed.values, order=5)[0]
         speed_shifts = cop_delta_speed.isel(time=ixs)
-        return speed_shifts[speed_shifts > 3]
+        return speed_shifts[speed_shifts > 2.5]
 
     @reify
     def heelstrikes(self):
@@ -432,7 +432,7 @@ class FloorRecording:
 
     @reify
     def heelstrike_triplets(self):
-        """Groups of 3 heel strikes, starting and ending on the right foot
+        """Groups of 3 detected heel strikes, starting and ending on a right foot
         """
         heels = self.heelstrikes
         heels = heels.assign(step_time=heels.time)  # The time coordinates will not be so useful later
@@ -442,9 +442,11 @@ class FloorRecording:
 
     @reify
     def heelstrike_triplet_windows(self):
-        """A list of the start and end times of heelstrike triplet (gait cycle)"""
-        return [(cycle.step_time[0].values, cycle.step_time[-1].values)
-                for _, cycle in self.heelstrike_triplets.groupby('cycle')]
+        """A list of the start and end times of heelstrike triplets, with exceptionally long ones filtered"""
+        windows = np.array([(cycle.step_time[0].values, cycle.step_time[-1].values)
+                            for _, cycle in self.heelstrike_triplets.groupby('cycle')])
+        durations = windows[:, 1] - windows[:, 0]
+        return windows[durations < durations.mean() * 1.5]
 
     @reify
     def walk_line(self):

@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import time
 import functools
 import similaritymeasures
+import multiprocessing
 
 
 class Descriptor(object):
@@ -658,8 +659,10 @@ class GaitCycleBatch:
             'frechet': other.dist_frechet
         }[metric]
         vec_f = np.vectorize(metric_dist)
-        distances = vec_f(self.cycles)
-        distances = [metric_dist(cycle) for cycle in self.cycles]
+        # distances = vec_f(self.cycles)
+        cpus = multiprocessing.cpu_count()
+        pool = multiprocessing.Pool(processes=cpus)
+        distances = np.array(pool.map(metric_dist, self.cycles))
         neighbors = self.cycles[distances.argsort()]
         return np.sort(distances), GaitCycleBatch(neighbors)
 

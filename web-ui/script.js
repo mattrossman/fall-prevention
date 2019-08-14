@@ -350,4 +350,333 @@ function plotlyGetRelayout(properties) {
     
 }
 
+<<<<<<< Updated upstream
 loadJSON(myCallback);
+=======
+function clearSliderContent() {
+    const content = document.getElementById('slideContent');
+    if (content != null) {
+        content.parentNode.removeChild(content);
+    }
+}
+
+function loadSliderContent(binsDaily, x, propertyTitle, propertyUnit, property) {
+    const date = x.split("-").map(string => parseInt(string));
+    const dateObj = new Date(date[0], date[1] - 1, date[2]);
+    const unixTime = Math.round(dateObj);
+    //access walking segments from that day in binsDaily
+    segments = binsDaily[unixTime];
+
+    const slider = document.getElementById('slider');
+    const content = document.createElement('div');
+    content.setAttribute('id', 'slideContent');
+
+    //header
+    const header = document.createElement('div');
+    header.setAttribute('class', 'cntl-header');
+    const options = {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'};
+    const headerText1 = document.createElement('div');
+    headerText1.setAttribute('class', 'cntl-header-a');
+    headerText1.innerHTML = propertyTitle + " " + propertyUnit;
+    const headerText2 = document.createElement('div');
+    headerText2.setAttribute('class', 'cntl-header-b');
+    headerText2.innerHTML = dateObj.toLocaleDateString("en-US", options);
+
+    //timeline
+    const tlContainer = document.createElement('div');
+    tlContainer.setAttribute('class', 'col-sm-12');
+    const rendererContainer = document.createElement('div');
+    rendererContainer.setAttribute('class', 'col-sm-0');
+    const renderer = document.createElement('canvas');
+    const buttonDiv = document.createElement('div');
+    buttonDiv.setAttribute('id', 'buttonDiv');
+    var button = document.createElement("button");
+    button.innerHTML = "Hide Visualization";
+    button.setAttribute('id', 'button');
+    button.style.display = 'none';
+    buttonDiv.appendChild(button);
+    //renderer.style.paddingTop = '15px';
+    //renderer.style.minHeight = '500px';
+    renderer.setAttribute('id', 'renderer');
+    rendererContainer.appendChild(renderer);
+    rendererContainer.appendChild(buttonDiv);
+    const tl = document.createElement('div');
+    tl.setAttribute('class', 'cntl');
+    const tlBar = document.createElement('span');
+    tlBar.setAttribute('class', 'cntl-bar cntl-center');
+    const tlBarFill = document.createElement('span');
+    tlBarFill.setAttribute('class', 'cntl-bar-fill');
+    tlBar.appendChild(tlBarFill);
+    tl.appendChild(tlBar);
+    const tlStates = document.createElement('div');
+    tlStates.setAttribute('class', 'cntl-states');
+    //walking segments
+    for (var i = 0; i < segments.length; i++) {
+        const tlSubState = document.createElement('div');
+        tlSubState.setAttribute('class', 'cntl-state');
+        const tlContent = document.createElement('div');
+        tlContent.setAttribute('class', 'cntl-content');
+        tlContent.setAttribute('id', 'cntl-content' + i);
+        const segmentAnchor = document.createElement('a');
+        segmentAnchor.setAttribute('class', 'click');
+        segmentAnchor.setAttribute('id', i.toString(10));
+
+        //Show Skeleton
+        segmentAnchor.onclick = function() {
+
+            const key = segments[this.id]['time']; //unix time string for that segment
+            //make segments unclickable while window is open
+            for (var j = 0; j < segments.length; j++) {
+                s = j.toString(10);
+                const el = document.getElementById(s);
+                el.onclick = false;
+                el.setAttribute('class', 'offclick');
+            }
+            const slider = $('#slider').slideReveal({
+                push: false,
+                overlay: true,
+                position: "right",
+                width: 850
+            });
+
+            slider.slideReveal('show');
+            button.style.display = 'block';
+            tlContent.setAttribute('class', 'ccntl-content');
+            tlContainer.setAttribute('class', 'col-sm-4');
+            rendererContainer.setAttribute('class', 'col-sm-8');
+            threejs();
+
+            button.addEventListener ("click", function() {
+
+                const rendererRem = document.getElementById('renderer');
+                if (rendererRem != null) {
+                    rendererRem.parentNode.removeChild(rendererRem);
+                }
+                const buttonRem = document.getElementById('button');
+                if (buttonRem != null) {
+                    buttonRem.parentNode.removeChild(buttonRem);
+                }
+                tlContent.setAttribute('class', 'cntl-content');
+                const slider = $('#slider').slideReveal({
+                    push: false,
+                    overlay: true,
+                    position: "right",
+                    width: 300
+                });
+                slider.slideReveal('show');
+                tlContainer.setAttribute('class', 'col-sm-12');
+                const rendererContainer = document.createElement('div');
+                rendererContainer.setAttribute('class', 'col-sm-0');
+                for (var j = 0; j < segments.length; j++) {
+                    s = j.toString(10);
+                    const el = document.getElementById(s);
+                    el.onclick = true;
+                    el.setAttribute('class', 'click');
+                }
+            });
+
+        }       
+        
+        const segmentTime = new Date(parseInt(segments[i]['time']));
+        const description = document.createElement('h4')
+        description.innerHTML = (Object.values(segments[i])[property]).toFixed(3);
+        tlContent.appendChild(description);
+        segmentAnchor.appendChild(tlContent);
+        tlSubState.appendChild(segmentAnchor);
+        const tlIcon = document.createElement('div');
+        tlIcon.setAttribute('class', 'cntl-icon cntl-center');
+        tlIcon.innerHTML = segmentTime.toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'});
+        tlSubState.appendChild(tlIcon);
+        tlStates.appendChild(tlSubState);
+    }
+
+    tl.appendChild(tlStates);
+    tlContainer.appendChild(tl);
+    header.appendChild(headerText1);
+    header.appendChild(headerText2);
+    content.appendChild(header);
+    content.appendChild(tlContainer);
+    content.appendChild(rendererContainer);
+    slider.appendChild(content);
+}
+
+//ThreeJS Renderer
+
+function threejs() {
+
+    function loadJSON(callback) {
+        var xobj = new XMLHttpRequest();
+        xobj.overrideMimeType("application/json");
+        xobj.open('GET', 'walk_segment_1.json', true);
+        xobj.onreadystatechange = function () {
+            if (xobj.readyState == 4 && xobj.status == "200") {
+                callback(JSON.parse(xobj.responseText));
+            }
+        };
+        xobj.send(null);
+    }
+
+    var getAnimationClip = function(json) {
+
+        var animations = []
+
+        const time_array = json['0']['0'][1];
+        var tracks = [];
+        tracks = [];
+		Object.values(json[0]).forEach(function(bones) {
+			var kf = new THREE.VectorKeyframeTrack(bones[0], time_array, array_zipper(bones[2]));
+			tracks.push(kf);
+		});
+		
+		const duration = time_array[time_array.length - 1]
+        const name = 'walk_1'
+
+        animations.push(new THREE.AnimationClip(name, duration, tracks));
+
+        var renderer, scene, camera;
+        // renderer
+        const canvas = document.getElementById('renderer');
+        renderer = new THREE.WebGLRenderer({canvas});
+        renderer.setClearColor(0xEEEEEE, 1.0);
+        var w = 560;
+        var h = 290;
+        renderer.setSize(w, h)
+
+        // scene
+        scene = new THREE.Scene();
+
+        // camera
+        camera = new THREE.PerspectiveCamera(40, w / h, 1, 10000);
+        camera.position.set(20, 20, 20);
+
+        // controls
+        controls = new THREE.OrbitControls(camera);
+
+        // ambient
+        scene.add(new THREE.AmbientLight(0x222222));
+
+        // light
+        var light = new THREE.DirectionalLight(0xffffff, 0.8);
+        light.position.set(20, 20, 0);
+        scene.add(light);
+
+        // axes
+        //scene.add(new THREE.AxesHelper(20));
+
+        // Spheres
+        var sphereGeometry = new THREE.SphereGeometry( 0.5, 32, 32);
+        var material = new THREE.MeshPhongMaterial( {color: 0xffff00} );
+
+        group = new THREE.Group();
+
+        var jointNames = getJointNames();
+
+        jointNames.forEach(function(jointName) {
+            sphere = new THREE.Mesh( sphereGeometry, material );
+            sphere.name = jointName;
+            group.add( sphere );
+        })
+        scene.add( group );
+
+        groupMixer = new THREE.AnimationMixer(group);
+        var skelClipAction = groupMixer.clipAction(animations[0]);
+		skelClipAction.play();
+
+        var clock = new THREE.Clock();
+  
+        function animate() {
+            requestAnimationFrame(animate);
+            render();
+        }
+        
+        function render() {
+            var delta = clock.getDelta();
+            
+            if (groupMixer) {
+                groupMixer.update(delta);
+            }
+            renderer.render(scene, camera);
+        
+        }
+
+        animate();
+            
+    }
+    loadJSON(getAnimationClip)
+
+    function array_zipper(a_of_a) {
+        var zipped = [];
+        for (let i=0; i<a_of_a[0].length; i++) {
+            a_of_a.forEach(function(array) {
+                zipped.push(array[i] * 10);
+            });
+        }
+        return zipped
+    }
+
+    function getJointNames() {
+        return [
+        'SpineBase',
+        'SpineMid',
+        'Neck',
+        'Head',
+        'ShoulderLeft',
+        'ElbowLeft',
+        'WristLeft',
+        'HandLeft',
+        'ShoulderRight',
+        'ElbowRight',
+        'WristRight',
+        'HandRight',
+        'HipLeft',
+        'KneeLeft',
+        'AnkleLeft',
+        'FootLeft',
+        'HipRight',
+        'KneeRight',
+        'AnkleRight',
+        'FootRight',
+        'SpineShoulder',
+        'HandTipLeft',
+        'ThumbLeft',
+        'HandTipRight',
+        'ThumbRight'
+        ]
+    }
+
+
+}
+
+$(document).ready(function(e){
+    $('.cntl').cntl({
+        revealbefore: 300,
+        anim_class: 'cntl-animate',
+        onreveal: function(e){
+            console.log(e);
+        }
+    });
+});
+
+loadJSON(myCallback);
+/*
+var controls = new THREE.OrbitControls( camera, renderer.domElement );
+        controls.enableZoom = false;
+        controls.enablePan = false;
+        controls.target = v(positions[0][0][0], positions[0][1][0], positions[0][2][0])
+        //controls.maxAzimuthAngle = 0;
+        controls.maxZoom = 0;
+        controls.addEventListener( 'change', function(){renderer.render(scene, camera)} );
+
+        //returns whether resolution needs to be changed because of window size change
+        function resizeRendererToDisplaySize(renderer) {
+            const canvas = renderer.domElement;
+            const width = canvas.clientWidth;
+            const height = canvas.clientHeight;
+            const needResize = canvas.width !== width || canvas.height !== height;
+            if (needResize) {
+            renderer.setSize(width, height, false);
+            }
+            return needResize;
+        }
+    */
+>>>>>>> Stashed changes

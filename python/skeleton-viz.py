@@ -5,7 +5,7 @@ import mpl_toolkits.mplot3d.axes3d as p3
 from matplotlib import animation
 
 
-df_skeleton = pd.read_csv('jumping-jacks.csv', engine='python', index_col=0)
+df_skeleton = pd.read_csv('data/jumping-jacks.csv', engine='python', index_col=0)
 
 # Compile dimensional dataframes, transform to better fit the real scene
 df_pos_x = df_skeleton.filter(regex="PositionX") * -1

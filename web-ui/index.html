@@ -17,7 +17,7 @@
         <link rel="stylesheet" href="css/switch.css">
         <link rel="stylesheet" href="css/cntl.css">
 
-        <title>Hello, world!</title>
+        <title>Fall Prevention</title>
 
     </head>
     <body>
@@ -25,36 +25,28 @@
             <!-- Left sidebar -->
             <div id="sidebar">
                 <header>
-                    <a href="#">Fall prevention</a>
+                    <a>Toggle Parameters</a>
                 </header>
                 <ul id = "toggle-container", class="nav">
                     <!-- Sidebar entries go here -->
                 </ul>
             </div>
             <!-- Right sidebar -->
-            <div id="slider"></div>
+            <div class="container-fluid">
+                <div id="slider"></div>
+            </div>
             <!-- <button id='trigger'>Trigger</button> -->
             <div id="content">
                 <!-- Top navigation bar -->
                 <nav class="navbar navbar-default">
                     <div class="container-fluid">
-                        <ul class="nav navbar-nav navbar-right">
-                            <li>
-                                <a href="#"><i class="zmdi zmdi-notifications text-danger"></i>
-                                </a>
-                            </li>
-                            <li><a href="#">Test User</a></li>
-                        </ul>
+                        <h1>Gait Parameters</h1>
                     </div>
                 </nav>
                 <div class="container-fluid">
                     <!-- Main content goes here -->
-                    
-                    <h1>Gait Parameters</h1>
-
                     <div id="plot">
                     </div>                    
-                    <canvas id="c"></canvas>
                 </div>
             </div>
         </div>
@@ -67,10 +59,11 @@
         <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
         <script src='https://cdn.jsdelivr.net/lodash/4.17.2/lodash.min.js'></script>
         <script src="js/switch.js"></script>
-        <script src="js/three.min.js"></script>
         <script src="//cdn.rawgit.com/mrdoob/three.js/master/build/three.min.js"></script>
+        <script src="js/OrbitControls.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/slideReveal/1.1.2/jquery.slidereveal.min.js"></script>
         <script src="js/jquery.cntl.js"></script>
         <script src="script.js"></script>
+        <!-- <script type="module" src="js/animation.js"></script> -->
     </body>
 </html>

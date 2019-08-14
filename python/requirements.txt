@@ -1,3 +1,6 @@
 pandas
 matplotlib
 numpy
+xarray
+scipy
+Pillow

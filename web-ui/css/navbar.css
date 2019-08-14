@@ -6,6 +6,12 @@ body {
   font-size: 16px;
 }
 
+#c {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
 /* Toggle Styles */
 
 #viewport {
@@ -20,6 +26,12 @@ body {
   width: 100%;
   position: relative;
   margin-right: 0;
+}
+
+/* Slider Styles */
+#slider {
+  background: #37474F;
+  overflow: auto;
 }
 
 /* Sidebar Styles */
@@ -39,14 +51,14 @@ body {
   transition: all 0.5s ease;
 }
 
-#sidebar header {
+#viewport header {
   background-color: #263238;
   font-size: 20px;
   line-height: 52px;
   text-align: center;
 }
 
-#sidebar header a {
+#viewport header a {
   color: #fff;
   display: block;
   text-decoration: none;

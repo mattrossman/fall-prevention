@@ -1,12 +1,72 @@
 # Using NumPy style docstrings
-import pandas as pd
-import numpy as np
-import xarray as xr
 from datetime import datetime
 from typing import List, Tuple
 
+import numpy as np
+import pandas as pd
+import xarray as xr
+import re
+from scipy.signal import argrelmin, argrelmax
+from scipy import spatial
+import matplotlib.pyplot as plt
+import time
+import functools
+import similaritymeasures
 
-class Board:
+
+class Descriptor(object):
+    def __init__(self, func):
+        self.func = func
+
+    def __get__(self, inst, type=None):
+        val = self.func(inst)
+        setattr(inst, self.func.__name__, val)
+        return val
+
+
+def reify(func):
+    return functools.wraps(func)(Descriptor(func))
+
+
+def _df_from_csv(path) -> pd.DataFrame:
+    columns = ['board_id', 'time', *range(48)]  # column names
+    df_raw = pd.read_csv(path, engine='python', names=columns, index_col=1)
+    df_raw.index = pd.to_datetime(df_raw.index, unit='ms')
+    return df_raw
+
+
+def _nonnegative_darray(da: xr.DataArray):
+    return da.where(da > 0).fillna(0)
+
+
+def plot_gait_cycles(cycles):
+    fig = plt.figure(figsize=(15,7))
+    n = len(cycles)
+    w = 1
+    for i, cycle in enumerate(cycles):
+        ax = fig.add_subplot(w, n, i + 1)
+        ax.axvline(0, c='r', linestyle=':')
+        ax.quiver(cycle.cop_mlap.med, cycle.cop_mlap.ant, cycle.cop_vel_mlap.med, cycle.cop_vel_mlap.ant, range(len(cycle)),
+                   angles='xy', units='dots', width=3, pivot='mid', cmap='cool', scale=25, scale_units='xy')
+        ax.set_title(cycle.name, size=10)
+        ax.set_xlim(-1, 1)
+
+
+def timeit(method, custom=''):
+    def timed(*args, **kw):
+        ts = time.time()
+        result = method(*args, **kw)
+        te = time.time()
+        if 'log_time' in kw:
+            name = kw.get('log_name', method.__name__.upper())
+            kw['log_time'][name] = int((te - ts) * 1000)
+        else:
+            print('%r  %2.2f ms' % (method.__name__, (te - ts) * 1000))
+        return result
+    return timed
+
+
+class BoardRecording:
     """A single board on the SmartFloor
 
     Attributes
@@ -18,9 +78,11 @@ class Board:
     x : int
         Where the left-most tile of this board begins on the floor (each tile represents one unit)
     y : int
-        Where the top-most tile of this board begins on the floor (each tile represents one unit)
+        Where the bottom-most tile of this board begins on the floor (each tile represents one unit)
     da : xarray.DataArray
         DataArray with x, y, and time dimensions, such that the time dimension can be indexed by datetime
+    hz : xarray.DataArray
+        The sample rate (in Hz) of the board over time
     Board.sensor_map : numpy.ndarray
         Mapping of sensor ids within the physical layout of a board
     Board.width : int
@@ -40,6 +102,7 @@ class Board:
     ]
     width, height = 4, 8
 
+    @timeit
     def __init__(self, df_floor: pd.DataFrame, board_id: int, x: int, y: int):
         """
         Parameters
@@ -51,7 +114,7 @@ class Board:
         x : int
             Where the left-most tile of this board begins on the floor (each tile represents one unit)
         y : int
-            Where the top-most tile of this board begins on the floor (each tile represents one unit)
+            Where the bottom-most tile of this board begins on the floor (each tile represents one unit)
         """
         # Extract this board's data, and remove the (now useless) board ID column
         self.df = df_floor[df_floor['board_id'] == board_id].drop(columns=['board_id'])
@@ -60,6 +123,7 @@ class Board:
         self.x = x
         self.y = y
         self.da = self.get_darray()
+        self.hz = self._get_hz(self.da)
 
     def mapped_stream_arr(self) -> np.ndarray:
         """Get pressure reading streams for each sensor in their assigned location
@@ -72,7 +136,7 @@ class Board:
             axis 1: columns of the board
             axis 2: time
         """
-        return np.array([[self.df[sensor_id] for sensor_id in row] for row in Board.sensor_map])
+        return np.array([[self.df[sensor_id] for sensor_id in row] for row in BoardRecording.sensor_map])
 
     def get_darray(self) -> xr.DataArray:
         """Build a DataArray from the current DataFrame data
@@ -84,7 +148,9 @@ class Board:
         """
         return xr.DataArray(self.mapped_stream_arr(),
                             dims=['y', 'x', 'time'],
-                            coords={'time': self.df.index})
+                            coords={'time': self.df.index,
+                                    'x': np.arange(self.x, self.x + 4),
+                                    'y': np.arange(self.y, self.y + 8)[::-1]})
 
     def update_darray(self):
         """Update the internal DataArray inplace based on current DataFrame data
@@ -105,29 +171,34 @@ class Board:
         """
         self.df.resample(freq).mean().ffill()
 
+    def _get_hz(self, da):
+        ns_diff = (da.time - da.time.shift(time=1))
+        board_hz = np.timedelta64(1, 's') / ns_diff
+        return board_hz
 
-class Floor:
+
+class FloorRecording:
     """A strip of SmartFloor boards
 
     Attributes
     ----------
     df : pandas.DataFrame
         Raw SmartFloor recording
-    boards : List[Board]
+    boards : List[BoardRecording]
         Board objects that make up the floor, in left to right order
     da : xarray.DataArray
         Interpolated mapping of all sensor readings with x, y, and time dimensions
+        Note that (0, 0) is located at the bottom left of the floor
     noise : xarray.DataArray
         Base pressure readings on the floor over the x, y plane
-    cop : xarray.Dataset
-        Center of pressure over time containing x, y, and magnitude variables
     Floor.board_map : List[int]
         List of board IDs in the order they appear left to right on the floor
     """
 
     board_map = [19, 17, 21, 18]
 
-    def __init__(self, df: pd.DataFrame):
+    @timeit
+    def __init__(self, df: pd.DataFrame, freq='40ms', start=None, end=None, name=None, trimmed=False):
         """
         Parameters
         ----------
@@ -135,20 +206,30 @@ class Floor:
             Raw SmartFloor recording
         """
         self.df = df
-        self.boards = [Board(df, board_id, x * Board.width, 0)
-                       for (x, board_id) in enumerate(Floor.board_map)]
+        self.boards = [BoardRecording(df, board_id, x * BoardRecording.width, 0)
+                       for (x, board_id) in enumerate(FloorRecording.board_map)]
+        all_start, all_end = FloorRecording._range(self.boards)
+        self.freq = pd.Timedelta(freq)
+        self.name = name
         self.da = self._get_darray()
         self.noise = self.da.isel(time=0)
-        self.cop = self._get_cop_dataset(self.denoise())
+        start = start or all_start
+        end = end or all_end
+        if trimmed:
+            start, end = self.loaded_window
+        sample_times = pd.date_range(start, end, freq=pd.Timedelta(freq))
+        self.samples = self.da.interp(time=sample_times)
 
     @staticmethod
-    def from_csv(path):
-        columns = ['board_id', 'time', *range(48)]  # column names
-        df_raw = pd.read_csv(path, engine='python', names=columns, index_col=1)
-        df_raw.index = pd.to_datetime(df_raw.index, unit='ms')
-        return Floor(df_raw)
+    def from_csv(path, name=None, *args, **kwargs):
+        name = name or re.match(r'.*/(.*)\.csv', path).groups()[0]  # By default use the csv file name
+        return FloorRecording(_df_from_csv(path), name=name, *args, **kwargs)
 
-    def range(self) -> Tuple[datetime, datetime]:
+    def __repr__(self):
+        return f'<FloorRecording {self.name}>'
+
+    @staticmethod
+    def _range(boards) -> Tuple[datetime, datetime]:
         """Get the interpolatable range for the floor
 
         Returns
@@ -158,8 +239,8 @@ class Floor:
         high : datetime
             The last time at which all boards are recording
         """
-        lo = max(board.df.index[0] for board in self.boards)
-        hi = min(board.df.index[-1] for board in self.boards)
+        lo = max(board.df.index[0] for board in boards)
+        hi = min(board.df.index[-1] for board in boards)
         return lo, hi
 
     def _get_darray(self) -> xr.DataArray:
@@ -170,8 +251,9 @@ class Floor:
         darray : xarray.DataArray
             Readings for the entire floor with x, y, and time dimensions
         """
-        da = xr.DataArray(xr.concat([board.da for board in self.boards], dim='x'))
-        return da.interpolate_na(dim='time', method='spline').dropna(dim='time')
+        da = xr.concat([board.da for board in self.boards], dim='x')
+        da = da.assign_coords(y=np.arange(0, 8)[::-1], x=np.arange(0, 16))
+        return _nonnegative_darray(da.interpolate_na(dim='time', method='linear').dropna(dim='time'))
 
     @staticmethod
     def _get_cop_dataset(da: xr.DataArray) -> xr.Dataset:
@@ -214,5 +296,427 @@ class Floor:
         masked = (da.where((abs(da.x - ds.x) <= dist)).where(abs(da.y - ds.y) <= dist))
         return masked
 
-    def denoise(self):
-        return self._masked_by_max(self.da - self.noise, 2)
+    def _denoise(self, da: xr.DataArray):
+        init_pass = _nonnegative_darray(da - self.noise)
+        return self._masked_by_max(init_pass, 3).fillna(0)
+
+    @reify
+    def pressure(self):
+        return self._denoise(self.samples)
+
+    @reify
+    def cop(self):
+        return self._get_cop_dataset(self.pressure)
+
+    @reify
+    def cop_vel(self):
+        cop = self.cop
+        return (cop.shift(time=-1) - cop).rolling(time=2).mean() / (self.freq / pd.Timedelta('1s'))
+
+    @reify
+    def cop_vel_mag(self):
+        vel = self.cop_vel
+        return np.sqrt(np.square(vel.x) + np.square(vel.y))
+
+    @reify
+    def cop_vel_mag_smoothed(self):
+        return self.cop_vel_mag.rolling(time=10, center=True).mean().dropna('time')
+
+    @reify
+    def cop_vel_mag_roc(self):
+        """Rate of change of velocity magnitude (change in speed, change in acceleration in direction of motion"""
+        speed = self.cop_vel_mag
+        return (speed.shift(time=-1) - speed).rolling(time=2).mean() / (self.freq / pd.Timedelta('1s'))
+
+    @reify
+    def cop_vel_mag_roc_smoothed(self):
+        return self.cop_vel_mag_roc.rolling(time=10, center=True).mean().dropna('time')
+
+    @reify
+    def cop_vel_mag_roc_smoothed2(self):
+        speed = self.cop_vel_mag_smoothed
+        return (speed.shift(time=-1) - speed).rolling(time=2).mean() / (self.freq / pd.Timedelta('1s'))
+
+    @reify
+    def cop_accel(self):
+        vel = self.cop_vel
+        return (vel.shift(time=-1) - vel).rolling(time=2).mean() / (self.freq / pd.Timedelta('1s'))
+
+    @reify
+    def cop_accel_mag(self):
+        """Magnitude of the COP acceleration vector"""
+        accel = self.cop_accel
+        return np.sqrt(np.square(accel.x) + np.square(accel.y))
+
+    @reify
+    def cop_accel_mag_roc(self):
+        """Rate of change of acceleration magnitude"""
+        accel_mag = self.cop_accel_mag
+        return (accel_mag.shift(time=-1) - accel_mag).rolling(time=2).mean() / (self.freq / pd.Timedelta('1s'))
+
+    @reify
+    def cop_jerk(self):
+        vel = self.cop_vel
+        return (vel.shift(time=-1) - vel).rolling(time=2).mean() / (self.freq / pd.Timedelta('1s'))
+
+    @reify
+    def cop_jerk_mag(self):
+        jerk = self.cop_jerk
+        return np.sqrt(np.square(jerk.x) + np.square(jerk.y))
+
+    @reify
+    def _anchors(self):
+        """Points along COP trajectory with minimal motion, good for marking a foot position
+        """
+        cop_speed = self.cop_vel_mag_smoothed
+        ixs = argrelmin(cop_speed.values, order=5)[0]
+        return cop_speed.isel(time=ixs)
+
+    @reify
+    def _weight_shifts(self):
+        """ Points of highest speed increase, contenders for heel strikes
+        """
+        cop_delta_speed = self.cop_vel_mag_roc_smoothed
+        ixs = argrelmax(cop_delta_speed.values, order=5)[0]
+        speed_shifts = cop_delta_speed.isel(time=ixs)
+        return speed_shifts[speed_shifts > 2.5]
+
+    @reify
+    def heelstrikes(self):
+        heel_dir = self.footstep_positions.reindex_like(self._weight_shifts, method='bfill')
+        heel_dir = heel_dir.fillna(heel_dir.shift(time=2))  # Assume feet alternation
+        return heel_dir.where(heel_dir != heel_dir.shift(time=1)).dropna('time')  # Disallow repeated values
+
+    @reify
+    def extrema_markers(self):
+        """Dataset containing the sequence of possible anchors and heelstrikes"""
+        return xr.Dataset({'anchors': self._anchors, 'heels': self._weight_shifts})
+
+    @reify
+    def footstep_positions(self):
+        """Positions of valid foot anchors along with their left/right labeling
+        """
+        ds = self.extrema_markers
+        valid_anchors = np.logical_not(np.logical_and(ds.anchors.notnull(),  ds.anchors.shift(time=-1).notnull()))
+        steps = self.cop.sel(time=ds.anchors[valid_anchors].dropna('time').time)
+        return steps.assign(dir=FloorRecording._step_dirs(steps))
+
+    @staticmethod
+    def _step_dirs(steps: xr.Dataset):
+        gait_cycles = steps.rolling(time=3).construct('window').dropna('time').groupby('time')
+        feet = xr.DataArray([FloorRecording._middle_foot_dir(sl) for _, sl in gait_cycles], dims='time',
+                            coords={'time': steps.time[1:-1]})
+        # Assume first and last steps follow typical alternation
+        feet = feet.reindex_like(steps)
+        return feet.fillna(feet.shift(time=2)).fillna(feet.shift(time=-2))
+
+    @staticmethod
+    def _middle_foot_dir(cycle: xr.Dataset):
+        """Determine whether the middle foot in the cycle is a right or left foot
+        """
+        step1 = cycle.isel(window=0)
+        step2 = cycle.isel(window=1)
+        step3 = cycle.isel(window=2)
+        v_step = np.array([step2.x - step1.x, step2.y - step1.y])
+        v_stride = np.array([step3.x - step1.x, step3.y - step1.y])
+        # Dot product of v_stride and 90CCW rotation of v_step
+        dir = v_stride.dot([-v_step[1], v_step[0]])
+        return 'right' if dir > 0 else 'left'
+
+    @reify
+    def footstep_cycles(self):
+        """Groups of 3 support positions, starting and ending on the right foot
+        """
+        footsteps = self.footstep_positions
+        cycle_groups = footsteps.rolling(time=3).construct('window').dropna('time').groupby('time')
+        cycles = xr.concat(np.array(list(cycle_groups))[:, 1], 'cycle')
+        return cycles.where(cycles.isel(window=0).dir == 'right').dropna('cycle')
+
+    @reify
+    def heelstrike_triplets(self):
+        """Groups of 3 detected heel strikes, starting and ending on a right foot
+        """
+        heels = self.heelstrikes
+        heels = heels.assign(step_time=heels.time)  # The time coordinates will not be so useful later
+        cycle_groups = heels.rolling(time=3).construct('window').dropna('time').groupby('time')
+        cycles = xr.concat(np.array(list(cycle_groups))[:, 1], 'cycle')
+        return cycles.where(cycles.isel(window=0).dir == 'right').dropna('cycle')
+
+    @reify
+    def heelstrike_triplet_windows(self):
+        """A list of the start and end times of heelstrike triplets, with exceptionally long ones filtered"""
+        windows = np.array([(cycle.step_time[0].values, cycle.step_time[-1].values)
+                            for _, cycle in self.heelstrike_triplets.groupby('cycle')])
+        durations = windows[:, 1] - windows[:, 0]
+        return windows[durations < durations.mean() * 1.5]
+
+    @reify
+    def walk_line(self):
+        """The overall straight trajectory of the subject
+
+        Returns
+        -------
+        start: xarray.Dataset
+        end: xarray.Dataset
+        """
+        footsteps = self.footstep_positions
+        start = footsteps.isel(time=slice(None,2)).mean('time')
+        end = footsteps.isel(time=slice(-2,None)).mean('time')
+        return start[['x', 'y']], end[['x', 'y']]
+
+    def _to_mlap(self, ds: xr.Dataset):
+        """Convert x, y positions to mediolateral, anteroposterior positions along walk line
+
+        Returns
+        -------
+        ds: xr.Dataset
+            Dataset containing (med, ant) data variables, with the origin at the start of the walk line
+        """
+        start, end = self.walk_line
+        v_line = (end - start).to_array()
+        v_rot = np.array([v_line[1], -v_line[0]])  # Rotate v_line 90 degrees clockwise
+        c, s = v_rot / np.linalg.norm(v_rot)  # Cosine and sine from unit vector
+        rot_matrix = np.array([[c, s], [-s, c]])  # Clockwise rotation matrix
+        med, ant = rot_matrix.dot(ds[['x', 'y']].to_array().values)
+        return xr.Dataset({'med': (['time'], med), 'ant': (['time'], ant)},  {'time': ds.time})
+
+    @reify
+    def cop_mlap(self):
+        start, end = self.walk_line
+        return self._to_mlap(self.cop - start)
+
+    @reify
+    def cop_mlap_cycles(self):
+        ds = self.cop_mlap
+        return [ds.sel(time=slice(*w)) for w in self.heelstrike_triplet_windows]
+
+    @reify
+    def cop_vel_mlap(self):
+        return self._to_mlap(self.cop_vel)
+
+    @reify
+    def cop_vel_mlap_cycles(self):
+        ds = self.cop_vel_mlap
+        return [ds.sel(time=slice(*w)) for w in self.heelstrike_triplet_windows]
+
+    @reify
+    def gait_cycles(self):
+        return np.array([GaitCycle(self, window, name=f'{self.name}_c{i}')
+                         for i, window in enumerate(self.heelstrike_triplet_windows)])
+
+    @reify
+    def loaded_window(self):
+        mag = self._denoise(self.da).sum(('x', 'y'))
+        loaded_range = mag.where(mag > mag.mean(), drop=True).time.values
+        return loaded_range[0], loaded_range[-1]
+
+
+class GaitCycle:
+    """Gait cycle normalized to a fixed number of samples"""
+    def __init__(self, floor, window, name=None):
+        self.floor = floor
+        self.date_window = window
+        self.date_range = pd.date_range(*window, periods=len(self))
+        self.name = name
+
+    def __len__(self):
+        return 40
+
+    def __repr__(self):
+        return f'<GaitCycle {self.name}>'
+
+    def _pos_dist(self, other, smoothing=None):
+        cop1 = self.cop_mlap if smoothing is None else self.cop_mlap.rolling(time=smoothing).mean()
+        cop2 = other.cop_mlap if smoothing is None else other.cop_mlap.rolling(time=smoothing).mean()
+        pos_diff = cop2 - cop1
+        return np.sqrt(np.square(pos_diff).med + np.square(pos_diff).ant)
+
+    def _vel_dist(self, other, smoothing=None):
+        vel1 = self.cop_vel_mlap if smoothing is None else self.cop_vel_mlap.rolling(time=smoothing).mean()
+        vel2 = other.cop_vel_mlap if smoothing is None else other.cop_vel_mlap.rolling(time=smoothing).mean()
+        vel_diff = vel2 - vel1
+        return np.sqrt(np.square(vel_diff).med + np.square(vel_diff).ant)
+
+    def _weighted_diff(self, other, pos_weight=1, vel_weight=1):
+        pos_dist = self._pos_dist(other).mean()
+        vel_dist = self._vel_dist(other).mean()
+        return pos_dist * pos_weight + vel_dist * vel_weight
+
+    def dist_weighted_pos(self, other):
+        return self._weighted_diff(other, vel_weight=0)
+
+    def dist_weighted_vel(self, other):
+        return self._weighted_diff(other, pos_weight=0)
+
+    def dist_weighted_mix(self, other):
+        return self._weighted_diff(other, pos_weight=5)
+
+    def dist_euclid_all(self, other):
+        f1, f2 = self.features, other.features
+        return np.sqrt(np.sum(np.square(f2 - f1)))
+
+    def dist_frechet(self, other):
+        dist_pos = similaritymeasures.frechet_dist(self.cop_mlap.to_array().T, other.cop_mlap.to_array().T)
+        # dist_vel = similaritymeasures.frechet_dist(self.cop_mlap.to_array().T, other.cop_mlap.to_array().T)
+        print(f'{self} is {dist_pos:.2f} from {other}')
+        return dist_pos
+
+    def dist_dtw(self, other):
+        dist_pos = similaritymeasures.dtw(self.cop_mlap.to_array().T, other.cop_mlap.to_array().T)[0]
+        # print(f'{self} is {dist_pos:.2f} from {other}')
+        return dist_pos
+
+    def dist_area(self, other):
+        dist_pos = similaritymeasures.area_between_two_curves(self.cop_mlap.to_array().T, other.cop_mlap.to_array().T)
+        # print(f'{self} is {dist_pos:.2f} from {other}')
+        return dist_pos
+
+    def dist_hausdorff(self, other):
+        dist_pos = spatial.distance.directed_hausdorff(self.cop_mlap.to_array().T, other.cop_mlap.to_array().T)[0]
+        return dist_pos
+
+
+    @reify
+    def ant_scale(self):
+        pos_i = self.floor.cop_mlap.interp(time=self.date_window[0])
+        pos_f = self.floor.cop_mlap.interp(time=self.date_window[1])
+        dist = pos_f - pos_i
+        return dist.ant.item()
+
+    @reify
+    def med_scale(self):
+        pos = self.floor.cop_mlap.interp(time=self.date_range)
+        pos_left = pos.med.min()
+        pos_right = pos.med.max()
+        return max(abs(pos_left), abs(pos_right)) * 2
+
+    @reify
+    def ant_offset(self):
+        pos_i = self.floor.cop_mlap.interp(time=self.date_window[0])
+        return pos_i.ant.item()
+
+    @reify
+    def cop_mlap(self):
+        pos = self.floor.cop_mlap.interp(time=self.date_range).drop('time')
+        pos['med'] = pos.med / self.med_scale
+        pos['ant'] = pos.ant - self.ant_offset
+        pos['ant'] = pos.ant / self.ant_scale
+        return pos
+
+    @reify
+    def cop_vel_mlap(self):
+        vel_mlap = self.floor.cop_vel_mlap.interp(time=self.date_range).drop('time')
+        vel_mlap['med'] = vel_mlap.med / self.med_scale
+        vel_mlap['ant'] = vel_mlap.ant / self.ant_scale
+        return vel_mlap
+
+    @reify
+    def duration(self):
+        return self.date_range[-1] - self.date_range[0]
+
+    @reify
+    def features(self):
+        """ DEPRECATED """
+        vel_mlap = self.cop_vel_mlap
+        pos_mlap = self.cop_mlap
+        return np.concatenate((pos_mlap.med, pos_mlap.ant, vel_mlap.med, vel_mlap.ant))
+
+
+class FloorRecordingBatch:
+    def __init__(self, floors):
+        self.floors = floors
+
+    @staticmethod
+    def from_csv(paths: List[str], *args, **kwargs):
+        """Create a batch of floor recordings from a list of .csv file paths
+
+        Parameters
+        ----------
+        paths : List[str]
+            File paths to the raw smartfloor .csv recordings
+        *args, **kwargs:
+            Arguments to be passed to FloorRecording constructor for each path
+
+        Returns
+        -------
+        FloorRecordingBatch
+        """
+        return FloorRecordingBatch(floors=[FloorRecording.from_csv(path, *args, **kwargs)
+                                           for path in paths])
+
+    @reify
+    def gait_cycles(self):
+        return np.hstack([floor.gait_cycles for floor in self.floors])
+
+    @reify
+    def gait_cycle_batch(self):
+        return GaitCycleBatch(self.gait_cycles)
+
+
+class GaitCycleBatch:
+    def __init__(self, cycles):
+        self.cycles = np.array(cycles)
+
+    def __len__(self):
+        return len(self.cycles)
+
+    def __getitem__(self, index):
+        return self.cycles[index]
+
+    def __iter__(self):
+        return self.cycles.__iter__()
+
+    def query_cycle(self, other: 'GaitCycle', metric='weighted-diff'):
+        """ Order the gait cycles by their similarity to a query cycle
+
+        Parameters
+        ----------
+        other : GaitCycle
+            Cycle to lookup
+        metric : str
+            Cycle to lookup
+
+        Returns
+        -------
+        distances : List[int]
+            Distances of each neighbor from the query
+        neighbors : GaitCycleBatch
+            Cycles in this batch in ascending order of distance from the query
+        """
+        metric_dist = {
+            'weighted_pos': other.dist_weighted_pos,
+            'weighted_vel': other.dist_weighted_vel,
+            'weighted_mix': other.dist_weighted_mix,
+            'euclid': other.dist_euclid_all,
+            'frechet': other.dist_frechet,
+            'dtw': other.dist_dtw,
+            'area': other.dist_area,
+            'hausdorff': other.dist_hausdorff
+        }[metric]
+        vec_f = np.vectorize(metric_dist)
+        distances = vec_f(self.cycles)
+        neighbors = self.cycles[distances.argsort()]
+        return np.sort(distances), GaitCycleBatch(neighbors)
+
+    def query_batch(self, other: 'GaitCycleBatch', *args, **kwargs):
+        return np.moveaxis(np.array([self.query_cycle(cycle, *args, **kwargs) for cycle in other]), 1, 0)
+
+    def partition_names(self, pattern, reverse=False):
+        """Split the batch into two batches based on a naming pattern
+
+        Parameters
+        ----------
+        pattern : str
+            Regex string pattern to match as hits
+
+        Returns
+        -------
+        hits : GaitCycleBatch
+            Cycles whose name matches the pattern
+        misses : GaitCycleBatch
+            Cycles whose name doesn't match the pattern
+        """
+        regex_hit = re.compile(pattern)
+        hits = GaitCycleBatch([cycle for cycle in self.cycles if regex_hit.match(cycle.name)])
+        misses = GaitCycleBatch([cycle for cycle in self.cycles if not regex_hit.match(cycle.name)])
+        return (hits, misses) if not reverse else (misses, hits)

@@ -471,128 +471,89 @@ function threejs() {
 
     var getAnimationClip = function(json) {
 
-
-
         var animations = []
 
         const time_array = json['0']['0'][1];
-        const scale_arrays = json['2']['0'][2];
-        const scale_array = array_zipper(scale_arrays)
         var tracks = [];
-        var positions = [];
-        let j = 0;
-        Object.values(json).forEach(function(kf_type, j) {
-            Object.values(kf_type).forEach(function(bones) {
-                //var kf = 0;
-                if (j == 0) {
-                    var kf = new THREE.VectorKeyframeTrack(bones[0], time_array, array_zipper(bones[2]));
-                    tracks.push(kf);
-                    positions.push(bones[2])
-                
-                } /* else if (j == 1) {
-                    kf = new THREE.QuaternionKeyframeTrack(bones[0], time_array, array_zipper(bones[2]));
-                } else {
-                    kf = new THREE.VectorKeyframeTrack(bones[0], time_array, scale_array);
-                }
-                tracks.push(kf);
-                */
-            });
-        });
-
-        const duration = time_array[time_array.length - 1]
+        tracks = [];
+		Object.values(json[0]).forEach(function(bones) {
+			var kf = new THREE.VectorKeyframeTrack(bones[0], time_array, array_zipper(bones[2]));
+			tracks.push(kf);
+		});
+		
+		const duration = time_array[time_array.length - 1]
         const name = 'walk_1'
 
         animations.push(new THREE.AnimationClip(name, duration, tracks));
-        console.log(animations);
-        console.log(positions);
 
-
-
+        var renderer, scene, camera;
+        // renderer
         const canvas = document.getElementById('renderer');
-        const renderer = new THREE.WebGLRenderer({canvas});
+        renderer = new THREE.WebGLRenderer({canvas});
         renderer.setClearColor(0xEEEEEE, 1.0);
         var w = 560;
         var h = 290;
-        renderer.setSize(w, h);
+        renderer.setSize(w, h)
 
-        //camera
-        const fov = 45;
-        const aspect = w / h;  // the canvas default
-        const near = 1;
-        const far = 1000;
-        const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
-        camera.position.z = 0;
-        camera.position.x = 1;
-        camera.lookAt(0, 0, 4);
+        // scene
+        scene = new THREE.Scene();
 
-        //scene
-        const scene = new THREE.Scene();
+        // camera
+        camera = new THREE.PerspectiveCamera(40, w / h, 1, 10000);
+        camera.position.set(20, 20, 20);
 
-        //light
-        {
-            const color = 0xFFFFFF;
-            const intensity = 1;
-            const light = new THREE.DirectionalLight(color, intensity);
-            light.position.set(-1, 2, 4);
-            scene.add(light);
+        // controls
+        controls = new THREE.OrbitControls(camera);
+
+        // ambient
+        scene.add(new THREE.AmbientLight(0x222222));
+
+        // light
+        var light = new THREE.DirectionalLight(0xffffff, 0.8);
+        light.position.set(20, 20, 0);
+        scene.add(light);
+
+        // axes
+        //scene.add(new THREE.AxesHelper(20));
+
+        // Spheres
+        var sphereGeometry = new THREE.SphereGeometry( 0.5, 32, 32);
+        var material = new THREE.MeshPhongMaterial( {color: 0xffff00} );
+
+        group = new THREE.Group();
+
+        var jointNames = getJointNames();
+
+        jointNames.forEach(function(jointName) {
+            sphere = new THREE.Mesh( sphereGeometry, material );
+            sphere.name = jointName;
+            group.add( sphere );
+        })
+        scene.add( group );
+
+        groupMixer = new THREE.AnimationMixer(group);
+        var skelClipAction = groupMixer.clipAction(animations[0]);
+		skelClipAction.play();
+
+        var clock = new THREE.Clock();
+  
+        function animate() {
+            requestAnimationFrame(animate);
+            render();
         }
-
-        var scatterPlot = new THREE.Object3D();
-        scene.add(scatterPlot);
-
-
-        scatterPlot.rotation.y = 0;
-
-        var axesHelper = new THREE.AxesHelper( 1 );
-        scene.add( axesHelper );
-
-        var mat = new THREE.PointsMaterial({
-            color: 0x000000,
-            size: 0.125
-        });
-
-
-        var pointCount = positions.length;
-        jointNames = getJointNames();
-        var pointGeo = new THREE.Geometry();
-        for (var i = 0; i < pointCount; i++) {
-            var x = positions[i][0][0];
-            var y = positions[i][1][0];
-            var z = positions[i][2][0];
-            vec = v(x, y, z);
-
-            pointGeo.vertices.push(v(x, y, z));
+        
+        function render() {
+            var delta = clock.getDelta();
             
-            pointGeo.colors.push(new THREE.Color(0x000000));
-
-        }
-        console.log(pointGeo.vertices);
-        //console.log(0, 0, );
-
-        var points = new THREE.Points(pointGeo, mat);
-        console.log(points);
-        scatterPlot.add(points);
-        renderer.render(scene, camera);
-
-        var controls = new THREE.OrbitControls( camera, renderer.domElement );
-        controls.enableZoom = false;
-        controls.enablePan = false;
-        controls.target = v(positions[0][0][0], positions[0][1][0], positions[0][2][0])
-        //controls.maxAzimuthAngle = 0;
-        controls.maxZoom = 0;
-        controls.addEventListener( 'change', function(){renderer.render(scene, camera)} );
-
-        //returns whether resolution needs to be changed because of window size change
-        function resizeRendererToDisplaySize(renderer) {
-            const canvas = renderer.domElement;
-            const width = canvas.clientWidth;
-            const height = canvas.clientHeight;
-            const needResize = canvas.width !== width || canvas.height !== height;
-            if (needResize) {
-            renderer.setSize(width, height, false);
+            if (groupMixer) {
+                groupMixer.update(delta);
             }
-            return needResize;
+            renderer.render(scene, camera);
+        
         }
+
+        animate();
+            
     }
     loadJSON(getAnimationClip)
 
@@ -600,14 +561,10 @@ function threejs() {
         var zipped = [];
         for (let i=0; i<a_of_a[0].length; i++) {
             a_of_a.forEach(function(array) {
-                zipped.push(array[i]);
+                zipped.push(array[i] * 10);
             });
         }
         return zipped
-    }
-    
-    function v(x, y, z) {
-        return new THREE.Vector3(x, y, z);
     }
 
     function getJointNames() {
@@ -619,11 +576,11 @@ function threejs() {
         'ShoulderLeft',
         'ElbowLeft',
         'WristLeft',
-        'HandTipLeft',
+        'HandLeft',
         'ShoulderRight',
         'ElbowRight',
         'WristRight',
-        'HandTipRight',
+        'HandRight',
         'HipLeft',
         'KneeLeft',
         'AnkleLeft',

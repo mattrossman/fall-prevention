@@ -1,0 +1,14 @@
+.*/
+.*
+!.gitignore
+*.mp4
+*.jpg
+*.wav
+*.avi
+*.csv
+*.zip
+*.p
+**.xef
+node_modules
+package-lock.json
+__pycache__

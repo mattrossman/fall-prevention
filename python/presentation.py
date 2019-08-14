@@ -70,7 +70,7 @@ def plot_step_detection():
     (cop_speed_roc / 10).plot(ax=ax2)
     for support in steps.dir:
         ax2.axvline(support.time.values, c=('r' if support.item() == 'right' else 'b'), linestyle='--')
-    for strike in floor._heelstrikes.dir:
+    for strike in floor.heelstrikes.dir:
         ax2.axvline(strike.time.values, c='gray', linestyle=':')
     plt.setp(ax2.xaxis.get_majorticklabels(), rotation='horizontal', ha='center', size=6)
 

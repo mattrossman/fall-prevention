@@ -7,9 +7,11 @@ import pandas as pd
 import xarray as xr
 import re
 from scipy.signal import argrelmin, argrelmax
+from scipy import spatial
 import matplotlib.pyplot as plt
 import time
 import functools
+import similaritymeasures
 
 
 class Descriptor(object):
@@ -317,9 +319,22 @@ class FloorRecording:
         return np.sqrt(np.square(vel.x) + np.square(vel.y))
 
     @reify
+    def cop_vel_mag_smoothed(self):
+        return self.cop_vel_mag.rolling(time=10, center=True).mean().dropna('time')
+
+    @reify
     def cop_vel_mag_roc(self):
         """Rate of change of velocity magnitude (change in speed, change in acceleration in direction of motion"""
         speed = self.cop_vel_mag
+        return (speed.shift(time=-1) - speed).rolling(time=2).mean() / (self.freq / pd.Timedelta('1s'))
+
+    @reify
+    def cop_vel_mag_roc_smoothed(self):
+        return self.cop_vel_mag_roc.rolling(time=10, center=True).mean().dropna('time')
+
+    @reify
+    def cop_vel_mag_roc_smoothed2(self):
+        speed = self.cop_vel_mag_smoothed
         return (speed.shift(time=-1) - speed).rolling(time=2).mean() / (self.freq / pd.Timedelta('1s'))
 
     @reify
@@ -335,7 +350,7 @@ class FloorRecording:
 
     @reify
     def cop_accel_mag_roc(self):
-        """Rate of change of velocity magnitude (change in speed, change in acceleration in direction of motion"""
+        """Rate of change of acceleration magnitude"""
         accel_mag = self.cop_accel_mag
         return (accel_mag.shift(time=-1) - accel_mag).rolling(time=2).mean() / (self.freq / pd.Timedelta('1s'))
 
@@ -353,32 +368,37 @@ class FloorRecording:
     def _anchors(self):
         """Points along COP trajectory with minimal motion, good for marking a foot position
         """
-        cop_speed = self.cop_vel_mag.rolling(time=10, center=True).mean().dropna('time')
-        ixs = argrelmin(cop_speed.values, order=3)[0]
+        cop_speed = self.cop_vel_mag_smoothed
+        ixs = argrelmin(cop_speed.values, order=5)[0]
         return cop_speed.isel(time=ixs)
 
     @reify
     def _weight_shifts(self):
-        """ Points of highest speed increase
+        """ Points of highest speed increase, contenders for heel strikes
         """
-        cop_delta_speed = self.cop_vel_mag_roc.rolling(time=3, center=True).mean().dropna('time')
-        ixs = argrelmax(cop_delta_speed.values, order=3)[0]
+        cop_delta_speed = self.cop_vel_mag_roc_smoothed
+        ixs = argrelmax(cop_delta_speed.values, order=5)[0]
         speed_shifts = cop_delta_speed.isel(time=ixs)
-        return speed_shifts[speed_shifts > 3]
+        return speed_shifts[speed_shifts > 2.5]
 
     @reify
-    def _heelstrikes(self):
+    def heelstrikes(self):
         heel_dir = self.footstep_positions.reindex_like(self._weight_shifts, method='bfill')
         heel_dir = heel_dir.fillna(heel_dir.shift(time=2))  # Assume feet alternation
         return heel_dir.where(heel_dir != heel_dir.shift(time=1)).dropna('time')  # Disallow repeated values
 
     @reify
+    def extrema_markers(self):
+        """Dataset containing the sequence of possible anchors and heelstrikes"""
+        return xr.Dataset({'anchors': self._anchors, 'heels': self._weight_shifts})
+
+    @reify
     def footstep_positions(self):
         """Positions of valid foot anchors along with their left/right labeling
         """
-        ds = xr.Dataset({'anchors': self._anchors, 'heels': self._weight_shifts})
-        valid_anchors = np.logical_and(ds.anchors.notnull(), ds.heels.shift(time=-1).notnull())
-        steps = self.cop.sel(time=ds.anchors[valid_anchors].time)
+        ds = self.extrema_markers
+        valid_anchors = np.logical_not(np.logical_and(ds.anchors.notnull(),  ds.anchors.shift(time=-1).notnull()))
+        steps = self.cop.sel(time=ds.anchors[valid_anchors].dropna('time').time)
         return steps.assign(dir=FloorRecording._step_dirs(steps))
 
     @staticmethod
@@ -405,7 +425,7 @@ class FloorRecording:
 
     @reify
     def footstep_cycles(self):
-        """Groups of 3 footsteps, starting and ending on the right foot
+        """Groups of 3 support positions, starting and ending on the right foot
         """
         footsteps = self.footstep_positions
         cycle_groups = footsteps.rolling(time=3).construct('window').dropna('time').groupby('time')
@@ -413,19 +433,22 @@ class FloorRecording:
         return cycles.where(cycles.isel(window=0).dir == 'right').dropna('cycle')
 
     @reify
-    def step_triplets(self):
-        """Groups of 3 footsteps, starting and ending on the right foot
+    def heelstrike_triplets(self):
+        """Groups of 3 detected heel strikes, starting and ending on a right foot
         """
-        heels = self._heelstrikes
+        heels = self.heelstrikes
         heels = heels.assign(step_time=heels.time)  # The time coordinates will not be so useful later
         cycle_groups = heels.rolling(time=3).construct('window').dropna('time').groupby('time')
         cycles = xr.concat(np.array(list(cycle_groups))[:, 1], 'cycle')
         return cycles.where(cycles.isel(window=0).dir == 'right').dropna('cycle')
 
     @reify
-    def step_triplet_windows(self):
-        return [(cycle.step_time[0].values, cycle.step_time[-1].values)
-                for _, cycle in self.step_triplets.groupby('cycle')]
+    def heelstrike_triplet_windows(self):
+        """A list of the start and end times of heelstrike triplets, with exceptionally long ones filtered"""
+        windows = np.array([(cycle.step_time[0].values, cycle.step_time[-1].values)
+                            for _, cycle in self.heelstrike_triplets.groupby('cycle')])
+        durations = windows[:, 1] - windows[:, 0]
+        return windows[durations < durations.mean() * 1.5]
 
     @reify
     def walk_line(self):
@@ -465,7 +488,7 @@ class FloorRecording:
     @reify
     def cop_mlap_cycles(self):
         ds = self.cop_mlap
-        return [ds.sel(time=slice(*w)) for w in self.step_triplet_windows]
+        return [ds.sel(time=slice(*w)) for w in self.heelstrike_triplet_windows]
 
     @reify
     def cop_vel_mlap(self):
@@ -474,12 +497,12 @@ class FloorRecording:
     @reify
     def cop_vel_mlap_cycles(self):
         ds = self.cop_vel_mlap
-        return [ds.sel(time=slice(*w)) for w in self.step_triplet_windows]
+        return [ds.sel(time=slice(*w)) for w in self.heelstrike_triplet_windows]
 
     @reify
     def gait_cycles(self):
         return np.array([GaitCycle(self, window, name=f'{self.name}_c{i}')
-                         for i, window in enumerate(self.step_triplet_windows)])
+                         for i, window in enumerate(self.heelstrike_triplet_windows)])
 
     @reify
     def loaded_window(self):
@@ -502,16 +525,56 @@ class GaitCycle:
     def __repr__(self):
         return f'<GaitCycle {self.name}>'
 
-    def _pos_dist(self, other):
-        pos_diff = self.cop_mlap - other.cop_mlap
+    def _pos_dist(self, other, smoothing=None):
+        cop1 = self.cop_mlap if smoothing is None else self.cop_mlap.rolling(time=smoothing).mean()
+        cop2 = other.cop_mlap if smoothing is None else other.cop_mlap.rolling(time=smoothing).mean()
+        pos_diff = cop2 - cop1
         return np.sqrt(np.square(pos_diff).med + np.square(pos_diff).ant)
 
-    def _vel_dist(self, other):
-        vel_diff = self.cop_vel_mlap - other.cop_vel_mlap
+    def _vel_dist(self, other, smoothing=None):
+        vel1 = self.cop_vel_mlap if smoothing is None else self.cop_vel_mlap.rolling(time=smoothing).mean()
+        vel2 = other.cop_vel_mlap if smoothing is None else other.cop_vel_mlap.rolling(time=smoothing).mean()
+        vel_diff = vel2 - vel1
         return np.sqrt(np.square(vel_diff).med + np.square(vel_diff).ant)
 
-    def dist(self, other):
-        return self._pos_dist(other).sum() + self._vel_dist(other).mean()
+    def _weighted_diff(self, other, pos_weight=1, vel_weight=1):
+        pos_dist = self._pos_dist(other).mean()
+        vel_dist = self._vel_dist(other).mean()
+        return pos_dist * pos_weight + vel_dist * vel_weight
+
+    def dist_weighted_pos(self, other):
+        return self._weighted_diff(other, vel_weight=0)
+
+    def dist_weighted_vel(self, other):
+        return self._weighted_diff(other, pos_weight=0)
+
+    def dist_weighted_mix(self, other):
+        return self._weighted_diff(other, pos_weight=5)
+
+    def dist_euclid_all(self, other):
+        f1, f2 = self.features, other.features
+        return np.sqrt(np.sum(np.square(f2 - f1)))
+
+    def dist_frechet(self, other):
+        dist_pos = similaritymeasures.frechet_dist(self.cop_mlap.to_array().T, other.cop_mlap.to_array().T)
+        # dist_vel = similaritymeasures.frechet_dist(self.cop_mlap.to_array().T, other.cop_mlap.to_array().T)
+        print(f'{self} is {dist_pos:.2f} from {other}')
+        return dist_pos
+
+    def dist_dtw(self, other):
+        dist_pos = similaritymeasures.dtw(self.cop_mlap.to_array().T, other.cop_mlap.to_array().T)[0]
+        # print(f'{self} is {dist_pos:.2f} from {other}')
+        return dist_pos
+
+    def dist_area(self, other):
+        dist_pos = similaritymeasures.area_between_two_curves(self.cop_mlap.to_array().T, other.cop_mlap.to_array().T)
+        # print(f'{self} is {dist_pos:.2f} from {other}')
+        return dist_pos
+
+    def dist_hausdorff(self, other):
+        dist_pos = spatial.distance.directed_hausdorff(self.cop_mlap.to_array().T, other.cop_mlap.to_array().T)[0]
+        return dist_pos
+
 
     @reify
     def ant_scale(self):
@@ -603,12 +666,14 @@ class GaitCycleBatch:
     def __iter__(self):
         return self.cycles.__iter__()
 
-    def query_cycle(self, other: 'GaitCycle'):
+    def query_cycle(self, other: 'GaitCycle', metric='weighted-diff'):
         """ Order the gait cycles by their similarity to a query cycle
 
         Parameters
         ----------
         other : GaitCycle
+            Cycle to lookup
+        metric : str
             Cycle to lookup
 
         Returns
@@ -618,12 +683,23 @@ class GaitCycleBatch:
         neighbors : GaitCycleBatch
             Cycles in this batch in ascending order of distance from the query
         """
-        distances = np.array([cycle.dist(other) for cycle in self.cycles])
+        metric_dist = {
+            'weighted_pos': other.dist_weighted_pos,
+            'weighted_vel': other.dist_weighted_vel,
+            'weighted_mix': other.dist_weighted_mix,
+            'euclid': other.dist_euclid_all,
+            'frechet': other.dist_frechet,
+            'dtw': other.dist_dtw,
+            'area': other.dist_area,
+            'hausdorff': other.dist_hausdorff
+        }[metric]
+        vec_f = np.vectorize(metric_dist)
+        distances = vec_f(self.cycles)
         neighbors = self.cycles[distances.argsort()]
         return np.sort(distances), GaitCycleBatch(neighbors)
 
-    def query_batch(self, other: 'GaitCycleBatch'):
-        return np.moveaxis(np.array([self.query_cycle(cycle) for cycle in other]), 1, 0)
+    def query_batch(self, other: 'GaitCycleBatch', *args, **kwargs):
+        return np.moveaxis(np.array([self.query_cycle(cycle, *args, **kwargs) for cycle in other]), 1, 0)
 
     def partition_names(self, pattern, reverse=False):
         """Split the batch into two batches based on a naming pattern

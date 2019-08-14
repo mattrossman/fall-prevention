@@ -350,9 +350,6 @@ function plotlyGetRelayout(properties) {
     
 }
 
-<<<<<<< Updated upstream
-loadJSON(myCallback);
-=======
 function clearSliderContent() {
     const content = document.getElementById('slideContent');
     if (content != null) {
@@ -679,4 +676,3 @@ var controls = new THREE.OrbitControls( camera, renderer.domElement );
             return needResize;
         }
     */
->>>>>>> Stashed changes

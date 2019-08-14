@@ -105,6 +105,12 @@ def res_style_accuracy(df) -> pd.Series:
     return grouped.correct.sum() / grouped.total.sum()
 
 
+def res_style_summary(df) -> float:
+    """ Overall accuracy for the entire experiment"""
+    styles = ['normal', 'slow', 'hunch', 'stppg', 'lhob', 'rhob']
+    return df.groupby('style').sum().loc[styles]
+
+
 def res_participant_accuracy(df) -> pd.Series:
     """ Overall accuracy measures for each participant"""
     grouped = df.groupby('pid')
@@ -114,3 +120,18 @@ def res_participant_accuracy(df) -> pd.Series:
 def res_overall_accuracy(df) -> float:
     """ Overall accuracy for the entire experiment"""
     return df.correct.sum() / df.total.sum()
+
+
+def main():
+    try:
+        global batch, train, test
+        batch = unpickle_batch()
+        train, test = batch.partition_names(rf'7_.*', reverse=True)
+    except FileNotFoundError:
+        print("You haven't pickled a batch of cycles yet!")
+
+
+metrics = ['euclid', 'weighted_pos', 'weighted_vel', 'weighted_mix']
+batch = None
+train, test = None, None
+main()

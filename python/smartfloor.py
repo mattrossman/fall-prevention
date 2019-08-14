@@ -7,6 +7,7 @@ import pandas as pd
 import xarray as xr
 import re
 from scipy.signal import argrelmin, argrelmax
+from scipy import spatial
 import matplotlib.pyplot as plt
 import time
 import functools
@@ -524,16 +525,31 @@ class GaitCycle:
     def __repr__(self):
         return f'<GaitCycle {self.name}>'
 
-    def _pos_dist(self, other):
-        pos_diff = self.cop_mlap - other.cop_mlap
+    def _pos_dist(self, other, smoothing=None):
+        cop1 = self.cop_mlap if smoothing is None else self.cop_mlap.rolling(time=smoothing).mean()
+        cop2 = other.cop_mlap if smoothing is None else other.cop_mlap.rolling(time=smoothing).mean()
+        pos_diff = cop2 - cop1
         return np.sqrt(np.square(pos_diff).med + np.square(pos_diff).ant)
 
-    def _vel_dist(self, other):
-        vel_diff = self.cop_vel_mlap - other.cop_vel_mlap
+    def _vel_dist(self, other, smoothing=None):
+        vel1 = self.cop_vel_mlap if smoothing is None else self.cop_vel_mlap.rolling(time=smoothing).mean()
+        vel2 = other.cop_vel_mlap if smoothing is None else other.cop_vel_mlap.rolling(time=smoothing).mean()
+        vel_diff = vel2 - vel1
         return np.sqrt(np.square(vel_diff).med + np.square(vel_diff).ant)
 
-    def dist_weighted_diff(self, other):
-        return self._pos_dist(other).sum() + self._vel_dist(other).mean()
+    def _weighted_diff(self, other, pos_weight=1, vel_weight=1):
+        pos_dist = self._pos_dist(other).mean()
+        vel_dist = self._vel_dist(other).mean()
+        return pos_dist * pos_weight + vel_dist * vel_weight
+
+    def dist_weighted_pos(self, other):
+        return self._weighted_diff(other, vel_weight=0)
+
+    def dist_weighted_vel(self, other):
+        return self._weighted_diff(other, pos_weight=0)
+
+    def dist_weighted_mix(self, other):
+        return self._weighted_diff(other, pos_weight=5)
 
     def dist_euclid_all(self, other):
         f1, f2 = self.features, other.features
@@ -544,6 +560,21 @@ class GaitCycle:
         # dist_vel = similaritymeasures.frechet_dist(self.cop_mlap.to_array().T, other.cop_mlap.to_array().T)
         print(f'{self} is {dist_pos:.2f} from {other}')
         return dist_pos
+
+    def dist_dtw(self, other):
+        dist_pos = similaritymeasures.dtw(self.cop_mlap.to_array().T, other.cop_mlap.to_array().T)[0]
+        # print(f'{self} is {dist_pos:.2f} from {other}')
+        return dist_pos
+
+    def dist_area(self, other):
+        dist_pos = similaritymeasures.area_between_two_curves(self.cop_mlap.to_array().T, other.cop_mlap.to_array().T)
+        # print(f'{self} is {dist_pos:.2f} from {other}')
+        return dist_pos
+
+    def dist_hausdorff(self, other):
+        dist_pos = spatial.distance.directed_hausdorff(self.cop_mlap.to_array().T, other.cop_mlap.to_array().T)[0]
+        return dist_pos
+
 
     @reify
     def ant_scale(self):
@@ -653,13 +684,17 @@ class GaitCycleBatch:
             Cycles in this batch in ascending order of distance from the query
         """
         metric_dist = {
-            'weighted-diff': other.dist_weighted_diff,
+            'weighted_pos': other.dist_weighted_pos,
+            'weighted_vel': other.dist_weighted_vel,
+            'weighted_mix': other.dist_weighted_mix,
             'euclid': other.dist_euclid_all,
-            'frechet': other.dist_frechet
+            'frechet': other.dist_frechet,
+            'dtw': other.dist_dtw,
+            'area': other.dist_area,
+            'hausdorff': other.dist_hausdorff
         }[metric]
         vec_f = np.vectorize(metric_dist)
         distances = vec_f(self.cycles)
-        distances = [metric_dist(cycle) for cycle in self.cycles]
         neighbors = self.cycles[distances.argsort()]
         return np.sort(distances), GaitCycleBatch(neighbors)
 
